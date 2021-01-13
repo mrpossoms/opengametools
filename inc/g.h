@@ -13,21 +13,11 @@ struct core
 	};
 
 
-	virtual bool initalize () { return true; }
+	virtual bool initialize () { return true; }
 
 	virtual void update (float dt) { }
 
-	start(const core::opts& opts);
-	{
-		if (!initialize()) { return; }
-
-		while (running)
-		{
-			auto dt = 0.f;
-
-			update(dt);
-		}
-	}
+	void start(const core::opts& opts);
 
 	bool running = false;
 };
