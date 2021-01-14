@@ -1,10 +1,10 @@
 TARGET=$(shell $(CXX) -dumpmachine)
 
-CXXFLAGS+=-std=c++11
+CXXFLAGS+=-std=c++14
 INC+=-I inc -Ideps/xmath.h/inc
 LIB+=
 LINK+=
-SRC=$(wildcard src/*.cpp)
+SRCS=$(wildcard src/*.cpp)
 OBJS=$(patsubst src/%.cpp,out/$(TARGET)/%.cpp.o,$(wildcard src/*.cpp))
 
 lib/$(TARGET):
@@ -26,5 +26,5 @@ clean:
 what:
 	@echo $(OBJS)
 
-# static: lib/$(TARGET)/libg.a:
-# 	@echo "Built libg.a"
+static: lib/$(TARGET)/libg.a
+	@echo "Built libg.a"

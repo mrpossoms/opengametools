@@ -22,6 +22,45 @@
 
 namespace g {
 
+struct core
+{
+	struct opts
+	{
+
+	};
+
+	/**
+	 * @brief      Overriding the initialize function gives you the chance
+	 * to run setup and initalization code before the update loop begins.
+	 *
+	 * @return     true if the initialization completed successfully, false
+	 * otherwise.
+	 */
+	virtual bool initialize () { return true; }
+
+	/**
+	 * @brief      The update function is effectively the main loop of your
+	 * game. Override this to run your game logic every frame/tick 
+	 *
+	 * @param[in]  dt    Amount of time elapsed since the previous call to 
+	 * update had finished.
+	 */
+	virtual void update (float dt) { }
+
+	/**
+	 * @brief      Calling start will first call initialize, do any additional
+	 * setup that might have been indicated by the opts parameter, then starts
+	 * the update loop until the `running` flag is set to false.
+	 *
+	 * @param[in]  opts  Special configuration options. See the declaration of 
+	 * core::opts for more details.
+	 */
+	void start(const core::opts& opts);
+
+	volatile bool running = false;
+};
+
+
 struct net
 {
 	template<typename T>
@@ -121,32 +160,16 @@ struct net
 		    	}
 		    });
 		}
-		~host();
+		~host()
+		{
+			close(listen_sock);
+		}
 
 		std::function<void(int socket, T& client)> on_connection;
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
 		int listen_sock;
 	};
-};
-
-struct core
-{
-	struct opts
-	{
-
-	};
-
-
-	virtual bool initialize () { return true; }
-
-	virtual void update (float dt) { }
-
-
-
-	void start(const core::opts& opts);
-
-	bool running = false;
 };
 
 
