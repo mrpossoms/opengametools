@@ -1,6 +1,6 @@
 TARGET=$(shell $(CXX) -dumpmachine)
 
-CXXFLAGS+=-std=c++14
+CXXFLAGS+=-std=c++11 -g
 INC+=-I inc -Ideps/xmath.h/inc
 LIB+=
 LINK+=

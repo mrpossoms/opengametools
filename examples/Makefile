@@ -1,6 +1,6 @@
 TARGET=$(shell $(CXX) -dumpmachine)
 
-CXXFLAGS+=-std=c++14
+CXXFLAGS+=-std=c++11 -g
 INC+=-I../inc -I../deps/xmath.h/inc
 LIB+=-L../lib/$(TARGET)/
 LINK+=-lg -lpthread
@@ -15,7 +15,10 @@ bin:
 bin/%: %.cpp bin ../lib/$(TARGET)/libg.a
 	$(CXX) $(CXXFLAGS) $(INC) $(LIB) $< -o $@ $(LINK)
 
-.PHONEY: all
+.PHONEY: all clean
 
 all:
 	@echo "Built all examples"
+
+clean:
+	rm -rf bin

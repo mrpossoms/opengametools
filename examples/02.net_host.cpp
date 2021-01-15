@@ -2,15 +2,19 @@
 
 struct player
 {
+	player() = default;
+
 	int hp;
 };
 
 
 struct my_core : public g::core
 {
+	g::net::host<player> host;
+
 	virtual bool initialize()
 	{
-		g::net::host<player> host(1337);
+		host.listen(1337);
 	
 		host.on_connection = [&](int sock, player& p) {
 			std::cout << "player connected.\n";
@@ -18,6 +22,12 @@ struct my_core : public g::core
 		};
 
 		host.on_packet = [&](int sock, player& p) -> int {
+			char buf[128] = {};
+			read(sock, buf, sizeof(buf));
+			std::cout << "Player sent: ";
+			write(1, buf, sizeof(buf));
+			std::cout << std::endl;
+
 			return 0;
 		};
 
@@ -26,7 +36,7 @@ struct my_core : public g::core
 
 	virtual void update(float dt)
 	{
-
+		host.update();
 	}
 };
 

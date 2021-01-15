@@ -66,7 +66,13 @@ struct net
 	template<typename T>
 	struct host
 	{
-		host(short port)
+		host() = default;
+		~host()
+		{
+			close(listen_sock);
+		}
+
+		void listen(short port)
 		{
 			listen_sock = socket(AF_INET, SOCK_STREAM, 0);
 			struct sockaddr_in name = {};
@@ -95,77 +101,76 @@ struct net
 			}
 
 			// begin listening
-			if(listen(listen_sock, 1))
+			if(::listen(listen_sock, 1))
 			{
 				close(listen_sock);
 				throw std::runtime_error("listen sock listen failed");
 			}
-
-		    std::thread listener([&] {
-		    	int max_sock = listen_sock;
-		    	fd_set rfds;
-		    	FD_ZERO(&rfds);
-		    	FD_SET(listen_sock, &rfds);
-
-		    	// for each client socket check connection status and set it
-		    	for (auto& pair : sockets)
-		    	{
-		    		int sock = pair.first;
-
-		    		// check the connection status of the client socket
-		    		char c;
-		    		switch (recv(sock, &c, 1, MSG_PEEK))
-		    		{
-		    			case -1:
-		    			case 0:
-		    				close(sock);
-		    				sockets.erase(sock);
-		    				break;
-		    			default: break;
-		    		}
-
-		    		FD_SET(sock, &rfds);
-		    		max_sock = std::max(sock, max_sock);
-		    	}
-
-		    	switch (select(max_sock + 1, &rfds, NULL, NULL, NULL))
-		    	{
-		    		case -1: { throw std::runtime_error("Select error"); }
-		    		case 0: { throw std::runtime_error("Timeout"); }
-		    		default:
-		    		{
-		    			// check all client sockets to see if any have messages
-		    			for (auto& pair : sockets)
-		    			{
-		    				if (!FD_ISSET(pair.first, &rfds)) { continue; }
-
-		    				on_packet(pair.first, pair.second);
-		    			}
-
-		    			if (FD_ISSET(listen_sock, &rfds))
-		    			{
-		    				struct sockaddr_in client_name = {};
-		    				socklen_t client_name_len = 0;
-		    				auto sock = accept(
-								listen_sock,
-								(struct sockaddr*)&client_name,
-								&client_name_len
-							);
-
-		    				sockets.emplace(sock, {});
-
-		    				on_connection(sock, sockets[sock]);
-		    			}
-		    		}
-		    	}
-		    });
 		}
-		~host()
+
+		void update()
 		{
-			close(listen_sock);
+			int max_sock = listen_sock;
+			fd_set rfds;
+			FD_ZERO(&rfds);
+			FD_SET(listen_sock, &rfds);
+
+			// for each client socket check connection status and set it
+			for (auto& pair : sockets)
+			{
+				int sock = pair.first;
+
+				// check the connection status of the client socket
+				char c;
+				switch (recv(sock, &c, 1, MSG_PEEK))
+				{
+					case -1:
+					case 0:
+						on_disconnection(sock, sockets[sock]);
+						close(sock);
+						sockets.erase(sock);
+						break;
+					default: break;
+				}
+
+				FD_SET(sock, &rfds);
+				max_sock = std::max(sock, max_sock);
+			}
+
+			switch (select(max_sock + 1, &rfds, NULL, NULL, NULL))
+			{
+				case -1: { throw std::runtime_error("Select error"); }
+				case 0: { throw std::runtime_error("Timeout"); }
+				default:
+				{
+					// check all client sockets to see if any have messages
+					for (auto& pair : sockets)
+					{
+						if (!FD_ISSET(pair.first, &rfds)) { continue; }
+
+						on_packet(pair.first, pair.second);
+					}
+
+					if (FD_ISSET(listen_sock, &rfds))
+					{
+						struct sockaddr_in client_name = {};
+						socklen_t client_name_len = 0;
+						auto sock = accept(
+							listen_sock,
+							(struct sockaddr*)&client_name,
+							&client_name_len
+						);
+
+						sockets[sock] = {};
+
+						on_connection(sock, sockets[sock]);
+					}
+				}
+			}
 		}
 
 		std::function<void(int socket, T& client)> on_connection;
+		std::function<void(int socket, T& client)> on_disconnection;
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
 		int listen_sock;
