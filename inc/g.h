@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <netinet/tcp.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -63,6 +64,14 @@ struct core
 
 struct net
 {
+	/**
+	 * @brief      A host object is used as a manager of network connections
+	 * this includes listening for new connections, and incomming messages.
+	 * When a connection is established a new instance of the template param
+	 * T is instantiated and paired to that connection
+	 *
+	 * @tparam     T     Class which will be instantiated for each connection.
+	 */
 	template<typename T>
 	struct host
 	{
@@ -121,17 +130,22 @@ struct net
 				int sock = pair.first;
 
 				// check the connection status of the client socket
-				char c;
-				switch (recv(sock, &c, 1, MSG_PEEK))
-				{
-					case -1:
-					case 0:
-						on_disconnection(sock, sockets[sock]);
-						close(sock);
-						sockets.erase(sock);
-						break;
-					default: break;
-				}
+				// char c;
+				// switch (recv(sock, &c, 1, MSG_PEEK | MSG_DONTWAIT))
+				// {
+				// 	case -1:
+				// 	case 0:
+				// 		// these errors only mean there was nothing for us to 
+				// 		// read at this moment. Not that the connection is 
+				// 		// broken
+				// 		if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
+
+				// 		on_disconnection(sock, sockets[sock]);
+				// 		close(sock);
+				// 		sockets.erase(sock);
+				// 		break;
+				// 	default: break;
+				// }
 
 				FD_SET(sock, &rfds);
 				max_sock = std::max(sock, max_sock);
@@ -139,16 +153,39 @@ struct net
 
 			switch (select(max_sock + 1, &rfds, NULL, NULL, NULL))
 			{
-				case -1: { throw std::runtime_error("Select error"); }
-				case 0: { throw std::runtime_error("Timeout"); }
+				case -1: { /* select error, possible disconnect */ }
+				case 0: { /* timeout occured */ }
 				default:
 				{
 					// check all client sockets to see if any have messages
 					for (auto& pair : sockets)
 					{
-						if (!FD_ISSET(pair.first, &rfds)) { continue; }
+						auto sock = pair.first;
+						if (!FD_ISSET(sock, &rfds)) { continue; }
 
-						on_packet(pair.first, pair.second);
+						// check the connection status of the client socket
+						// otherwise, pass the message over to the lambda
+						char c;
+						switch (recv(sock, &c, 1, MSG_PEEK | MSG_DONTWAIT))
+						{
+							case -1:
+							case 0:
+								// these errors only mean there was nothing for us to 
+								// read at this moment. Not that the connection is 
+								// broken
+								if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
+
+								on_disconnection(sock, sockets[sock]);
+								close(sock);
+								sockets.erase(sock);
+
+								// if the last connection just dropped, just return.
+								if (sockets.size() == 0) { return; }
+								break;
+							default:
+								on_packet(sock, pair.second);
+								break;
+						}
 					}
 
 					if (FD_ISSET(listen_sock, &rfds))
@@ -160,6 +197,12 @@ struct net
 							(struct sockaddr*)&client_name,
 							&client_name_len
 						);
+
+						int one = 1, five = 5;
+						setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one));
+						setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &five, sizeof(five));
+						setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &one, sizeof(one));
+						setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &five, sizeof(five));
 
 						sockets[sock] = {};
 
@@ -174,6 +217,11 @@ struct net
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
 		int listen_sock;
+	};
+
+	struct client
+	{
+
 	};
 };
 
