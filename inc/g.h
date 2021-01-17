@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <strings.h>
 
 #include <unordered_map>
 #include <initializer_list>
@@ -75,77 +76,65 @@ struct net
 	template<typename T>
 	struct host
 	{
+		std::function<void(int socket, T& client)> on_connection;
+		std::function<void(int socket, T& client)> on_disconnection;
+		std::function<int(int socket, T& client)> on_packet;
+		std::unordered_map<int, T> sockets;
+		int listen_socket;
+
 		host() = default;
 		~host()
 		{
-			close(listen_sock);
+			close(listen_socket);
 		}
 
 		void listen(short port)
 		{
-			listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+			listen_socket = ::socket(AF_INET, SOCK_STREAM, 0);
 			struct sockaddr_in name = {};
 			name.sin_family      = AF_INET;
 			name.sin_port        = htons(port);
 			name.sin_addr.s_addr = htonl(INADDR_ANY);
 
-			if (listen_sock < 0)
+			if (listen_socket < 0)
 			{
 				throw std::runtime_error("listen sock creation failed");
 			}
 
 			// allow port reuse for quicker restarting
 			int use = 1;
-			if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEPORT, (char*)&use, sizeof(use)))
+			if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEPORT, (char*)&use, sizeof(use)))
 			{
-				close(listen_sock);
+				close(listen_socket);
 				throw std::runtime_error("Setting SO_REUSEPORT to listen socket failed");
 			}
 
 			// bind the listening sock to port number
-			if (bind(listen_sock, (const struct sockaddr*)&name, sizeof(name)))
+			if (bind(listen_socket, (const struct sockaddr*)&name, sizeof(name)))
 			{
-				close(listen_sock);
+				close(listen_socket);
 				throw std::runtime_error("listen sock bind failed");
 			}
 
 			// begin listening
-			if(::listen(listen_sock, 1))
+			if(::listen(listen_socket, 1))
 			{
-				close(listen_sock);
+				close(listen_socket);
 				throw std::runtime_error("listen sock listen failed");
 			}
 		}
 
 		void update()
 		{
-			int max_sock = listen_sock;
+			int max_sock = listen_socket;
 			fd_set rfds;
 			FD_ZERO(&rfds);
-			FD_SET(listen_sock, &rfds);
+			FD_SET(listen_socket, &rfds);
 
 			// for each client socket check connection status and set it
 			for (auto& pair : sockets)
 			{
 				int sock = pair.first;
-
-				// check the connection status of the client socket
-				// char c;
-				// switch (recv(sock, &c, 1, MSG_PEEK | MSG_DONTWAIT))
-				// {
-				// 	case -1:
-				// 	case 0:
-				// 		// these errors only mean there was nothing for us to 
-				// 		// read at this moment. Not that the connection is 
-				// 		// broken
-				// 		if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
-
-				// 		on_disconnection(sock, sockets[sock]);
-				// 		close(sock);
-				// 		sockets.erase(sock);
-				// 		break;
-				// 	default: break;
-				// }
 
 				FD_SET(sock, &rfds);
 				max_sock = std::max(sock, max_sock);
@@ -188,12 +177,12 @@ struct net
 						}
 					}
 
-					if (FD_ISSET(listen_sock, &rfds))
+					if (FD_ISSET(listen_socket, &rfds))
 					{
 						struct sockaddr_in client_name = {};
 						socklen_t client_name_len = 0;
 						auto sock = accept(
-							listen_sock,
+							listen_socket,
 							(struct sockaddr*)&client_name,
 							&client_name_len
 						);
@@ -211,17 +200,73 @@ struct net
 				}
 			}
 		}
-
-		std::function<void(int socket, T& client)> on_connection;
-		std::function<void(int socket, T& client)> on_disconnection;
-		std::function<int(int socket, T& client)> on_packet;
-		std::unordered_map<int, T> sockets;
-		int listen_sock;
 	};
 
 	struct client
 	{
+		std::function<int(int socket)> on_packet;
+		std::function<void(int socket)> on_disconnection;
+		int socket;
 
+		bool connect(const std::string& hostname, short port)
+		{
+			// resolve host
+			auto host = gethostbyname(hostname.c_str());
+			if (host == nullptr)
+			{
+				return false;
+			}
+
+			struct sockaddr_in host_addr = {};
+			// fill in host_addr with resolved info
+			bcopy(
+				(char *)host->h_addr,
+				(char *)&host_addr.sin_addr.s_addr,
+				host->h_length
+			);
+			host_addr.sin_port   = htons(port);
+			host_addr.sin_family = AF_INET;
+
+			socket = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+
+			auto res = ::connect(socket, (const sockaddr*)&host_addr, sizeof(host_addr));
+
+			int one = 1, five = 5;
+			setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one));
+			setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &five, sizeof(five));
+			setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &one, sizeof(one));
+			setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &five, sizeof(five));
+
+			if (0 == res) { return res; }
+
+			// otherwise, cleanup and return false.
+			close(socket);
+			return false;
+		}
+
+		void update()
+		{
+			// check the connection status of the client socket
+			// otherwise, pass the message over to the lambda
+			char c;
+			switch (recv(socket, &c, 1, MSG_PEEK | MSG_DONTWAIT))
+			{
+				case -1:
+				case 0:
+					// these errors only mean there was nothing for us to 
+					// read at this moment. Not that the connection is 
+					// broken
+					if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
+
+					on_disconnection(socket);
+					close(socket);
+					socket = -1;
+					break;
+				default:
+					on_packet(socket);
+					break;
+			}
+		}
 	};
 };
 

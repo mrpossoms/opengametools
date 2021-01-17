@@ -39,6 +39,9 @@ struct my_core : public g::core
 	virtual void update(float dt)
 	{
 		host.update();
+
+		std::cout << "server time: " << time(NULL) << "\n";
+		sleep(1);
 	}
 };
 
