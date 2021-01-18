@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
+#include <fcntl.h>
 
 #include <unordered_map>
 #include <initializer_list>
@@ -42,9 +43,9 @@ struct core
 
 	/**
 	 * @brief      The update function is effectively the main loop of your
-	 * game. Override this to run your game logic every frame/tick 
+	 * game. Override this to run your game logic every frame/tick
 	 *
-	 * @param[in]  dt    Amount of time elapsed since the previous call to 
+	 * @param[in]  dt    Amount of time elapsed since the previous call to
 	 * update had finished.
 	 */
 	virtual void update (float dt) { }
@@ -54,7 +55,7 @@ struct core
 	 * setup that might have been indicated by the opts parameter, then starts
 	 * the update loop until the `running` flag is set to false.
 	 *
-	 * @param[in]  opts  Special configuration options. See the declaration of 
+	 * @param[in]  opts  Special configuration options. See the declaration of
 	 * core::opts for more details.
 	 */
 	void start(const core::opts& opts);
@@ -80,6 +81,7 @@ struct net
 		std::function<void(int socket, T& client)> on_disconnection;
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
+		std::thread listen_thread;
 		int listen_socket;
 
 		host() = default;
@@ -122,6 +124,13 @@ struct net
 				close(listen_socket);
 				throw std::runtime_error("listen sock listen failed");
 			}
+
+			listen_thread = std::thread([&]{
+				while(true)
+				{
+					update();
+				}
+			});
 		}
 
 		void update()
@@ -159,8 +168,8 @@ struct net
 						{
 							case -1:
 							case 0:
-								// these errors only mean there was nothing for us to 
-								// read at this moment. Not that the connection is 
+								// these errors only mean there was nothing for us to
+								// read at this moment. Not that the connection is
 								// broken
 								if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
 
@@ -187,12 +196,13 @@ struct net
 							&client_name_len
 						);
 
+#ifdef __linux__
 						int one = 1, five = 5;
 						setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one));
 						setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &five, sizeof(five));
 						setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &one, sizeof(one));
 						setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &five, sizeof(five));
-
+#endif
 						sockets[sock] = {};
 
 						on_connection(sock, sockets[sock]);
@@ -227,15 +237,18 @@ struct net
 			host_addr.sin_port   = htons(port);
 			host_addr.sin_family = AF_INET;
 
-			socket = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+			socket = ::socket(AF_INET, SOCK_STREAM, 0);
+			fcntl(socket, F_SETFL, O_NONBLOCK);
 
 			auto res = ::connect(socket, (const sockaddr*)&host_addr, sizeof(host_addr));
 
+#ifdef __linux__
 			int one = 1, five = 5;
 			setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one));
 			setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &five, sizeof(five));
 			setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &one, sizeof(one));
 			setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &five, sizeof(five));
+#endif
 
 			if (0 == res) { return res; }
 
@@ -244,29 +257,7 @@ struct net
 			return false;
 		}
 
-		void update()
-		{
-			// check the connection status of the client socket
-			// otherwise, pass the message over to the lambda
-			char c;
-			switch (recv(socket, &c, 1, MSG_PEEK | MSG_DONTWAIT))
-			{
-				case -1:
-				case 0:
-					// these errors only mean there was nothing for us to 
-					// read at this moment. Not that the connection is 
-					// broken
-					if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
 
-					on_disconnection(socket);
-					close(socket);
-					socket = -1;
-					break;
-				default:
-					on_packet(socket);
-					break;
-			}
-		}
 	};
 };
 

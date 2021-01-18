@@ -26,7 +26,7 @@ struct my_core : public g::core
 
 	virtual void update(float dt)
 	{
-		client.update();
+		// client.update();
 	}
 };
 

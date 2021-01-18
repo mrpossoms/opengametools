@@ -15,7 +15,7 @@ struct my_core : public g::core
 	virtual bool initialize()
 	{
 		host.listen(1337);
-	
+
 		host.on_connection = [&](int sock, player& p) {
 			std::cout << "player" << sock << " connected.\n";
 			p.hp = 100;
@@ -38,7 +38,7 @@ struct my_core : public g::core
 
 	virtual void update(float dt)
 	{
-		host.update();
+		// host.update();
 
 		std::cout << "server time: " << time(NULL) << "\n";
 		sleep(1);
