@@ -8,6 +8,17 @@ struct player
 };
 
 
+struct chat_msg : g::net::msg
+{
+	void to_network() { id = htonl(id); }
+
+	void to_machine() { id = ntohl(id); }
+
+	char buf[128];
+	int id;
+};
+
+
 struct my_core : public g::core
 {
 	g::net::host<player> host;
@@ -26,9 +37,21 @@ struct my_core : public g::core
 		};
 
 		host.on_packet = [&](int sock, player& p) -> int {
-			char buf[128] = {};
-			read(sock, buf, sizeof(buf));
-			std::cout << "Player" << sock << " sent: " << std::string(buf) << std::endl;
+			chat_msg msg;
+			read(sock, &msg, sizeof(msg));
+			msg.to_machine();
+			msg.id = sock;
+
+			std::cout << "user" << sock << ": " << std::string(msg.buf) << std::endl;
+			msg.to_network();
+
+			for (auto pair : host.sockets)
+			{
+				// don't send the message back to the sender
+				if (pair.first == sock) { continue; }
+
+				send(pair.first, &msg, sizeof(msg), 0);
+			}
 
 			return 0;
 		};

@@ -1,5 +1,15 @@
 #include <g.h>
+#include <stdio.h>
 
+struct chat_msg : g::net::msg
+{
+	void to_network() { id = htonl(id); }
+
+	void to_machine() { id = ntohl(id); }
+
+	char buf[128];
+	int id;
+};
 
 struct my_core : public g::core
 {
@@ -12,21 +22,35 @@ struct my_core : public g::core
 		};
 
 		client.on_packet = [&](int sock) -> int {
-			char buf[128] = {};
-			read(sock, buf, sizeof(buf));
-			std::cout << " sent: " << std::string(buf) << std::endl;
+			chat_msg msg;
+			read(sock, &msg, sizeof(msg));
+			msg.to_machine();
+
+			std::cout << "user" << msg.id << ": " << std::string(msg.buf) <<std::endl;
 
 			return 0;
 		};
-
-		client.connect("127.0.0.1", 1337);
 
 		return true;
 	}
 
 	virtual void update(float dt)
 	{
-		// client.update();
+		if (!client.is_connected)
+		{
+			std::cerr << "Connecting...\n";
+
+			if (client.connect("127.0.0.1", 1337))
+			{
+				std::cerr << "connected!\n";
+				client.listen();				
+			}
+		}
+
+		chat_msg out;
+		fgets(out.buf, sizeof(out.buf), stdin);
+		out.to_network();
+		send(client.socket, &out, sizeof(out), 0);
 	}
 };
 

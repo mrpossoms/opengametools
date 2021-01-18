@@ -66,6 +66,12 @@ struct core
 
 struct net
 {
+	struct msg
+	{
+		virtual void to_network() = 0;
+		virtual void to_machine() = 0;
+	};
+
 	/**
 	 * @brief      A host object is used as a manager of network connections
 	 * this includes listening for new connections, and incomming messages.
@@ -216,7 +222,9 @@ struct net
 	{
 		std::function<int(int socket)> on_packet;
 		std::function<void(int socket)> on_disconnection;
+		std::thread listen_thread;
 		int socket;
+		bool is_connected = false;
 
 		bool connect(const std::string& hostname, short port)
 		{
@@ -238,7 +246,7 @@ struct net
 			host_addr.sin_family = AF_INET;
 
 			socket = ::socket(AF_INET, SOCK_STREAM, 0);
-			fcntl(socket, F_SETFL, O_NONBLOCK);
+			// fcntl(socket, F_SETFL, O_NONBLOCK);
 
 			auto res = ::connect(socket, (const sockaddr*)&host_addr, sizeof(host_addr));
 
@@ -250,7 +258,11 @@ struct net
 			setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &five, sizeof(five));
 #endif
 
-			if (0 == res) { return res; }
+			if (0 == res)
+			{
+				is_connected = true;
+				return true;
+			}
 
 			// otherwise, cleanup and return false.
 			close(socket);
@@ -258,6 +270,39 @@ struct net
 		}
 
 
+		void listen()
+		{
+			listen_thread = std::thread([&]{
+				while(is_connected)
+				{
+					update();
+				}
+			});
+		}
+
+
+		void update()
+		{
+			char c;
+			switch (recv(socket, &c, sizeof(c), MSG_PEEK))
+			{
+				case -1:
+				case 0:
+					// these errors only mean there was nothing for us to 
+					// read at this moment. Not that the connection is 
+					// broken
+					if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
+
+					is_connected = false;
+					on_disconnection(socket);
+					close(socket);
+					socket = -1;
+					break;
+				default:
+					on_packet(socket);
+					break;
+			}
+		}
 	};
 };
 
