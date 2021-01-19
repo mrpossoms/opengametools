@@ -224,7 +224,7 @@ struct net
 		std::function<void(int socket)> on_disconnection;
 		std::thread listen_thread;
 		int socket;
-		bool is_connected = false;
+		volatile bool is_connected = false;
 
 		bool connect(const std::string& hostname, short port)
 		{
@@ -272,6 +272,7 @@ struct net
 
 		void listen()
 		{
+			if (listen_thread.joinable()) { listen_thread.join(); }
 			listen_thread = std::thread([&]{
 				while(is_connected)
 				{
@@ -288,8 +289,8 @@ struct net
 			{
 				case -1:
 				case 0:
-					// these errors only mean there was nothing for us to 
-					// read at this moment. Not that the connection is 
+					// these errors only mean there was nothing for us to
+					// read at this moment. Not that the connection is
 					// broken
 					if (errno == EAGAIN || errno == EWOULDBLOCK) { break; }
 
