@@ -63,7 +63,7 @@ struct my_core : public g::core
 	{
 		// host.update();
 
-		std::cout << "server time: " << time(NULL) << "\n";
+		std::cout << "server time: " << time(NULL) << " dt:"<< dt <<"\n";
 		sleep(1);
 	}
 };
