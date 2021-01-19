@@ -7,13 +7,14 @@ void g::core::start(const core::opts& opts)
 
 	running = true;
 
-    auto start = std::chrono::system_clock::now();
-    auto now = std::chrono::system_clock::now();
+	auto t_1 = std::chrono::system_clock::now();
 
 	while (running)
 	{
-		auto dt = (now - start).count();
+		auto t_0 = std::chrono::system_clock::now();
+		std::chrono::duration<float> dt = t_0 - t_1;
 
-		update(dt);
+		update(dt.count());
+		t_1 = t_0;
 	}
 }
