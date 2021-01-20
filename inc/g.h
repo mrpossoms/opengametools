@@ -14,6 +14,7 @@
 #include <fcntl.h>
 
 #include <unordered_map>
+#include <unordered_set>
 #include <initializer_list>
 #include <functional>
 #include <thread>
@@ -24,6 +25,43 @@
 
 
 namespace g {
+
+struct split
+{
+public:
+	struct it 
+	{
+	public:
+		it(std::string &str, std::string delim, size_t pos);
+
+		void operator++();
+
+		bool operator!=(it &i);
+
+		std::string operator*();
+
+	protected:
+		std::string &_str;
+		std::string _delim;
+		size_t _pos, _next_pos;
+	};
+
+	/**
+	 * @brief iterable class that splits a string into tokens
+	 *        separated by occurences of delim
+	 * @param str String whose tokens we want to iterate over.
+	 * @param delim String used as delimiter to create tokens.
+	 */
+	split(std::string &str, std::string delim);
+
+	it begin();
+
+	it end();
+
+private:
+	std::string &_str;
+	std::string _delim;
+};
 
 struct core
 {
@@ -87,6 +125,7 @@ struct net
 		std::function<void(int socket, T& client)> on_disconnection;
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
+		std::unordered_set<int> senders;
 		std::thread listen_thread;
 		int listen_socket;
 
@@ -96,6 +135,14 @@ struct net
 			close(listen_socket);
 		}
 
+		/**
+		 * @brief      Calling this method will bind a socker for accepting connections 
+		 * to the provided port, then start a seperate thread to manage data received
+		 * from clients, new connections, and disconnection events. This method can
+		 * throw std::runtime_error exceptions for a number of reasons.
+		 *
+		 * @param[in]  port  The port to listen on
+		 */
 		void listen(short port)
 		{
 			listen_socket = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -137,6 +184,27 @@ struct net
 					update();
 				}
 			});
+		}
+
+		bool is_client_ws(int sock)
+		{
+			char buf[1024] = {};
+			auto bytes = recv(sock, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
+		
+			auto lines = std::string(buf);
+			int i = 0;
+			for (auto line : g::split(lines, "\r\n"))
+			{
+				std::cerr << "[" << line << "]\n"; 
+				if (i == 0 && std::string::npos == line.find("GET")) { return false; }
+
+				i++;
+			}
+
+			// purge the http request we just got
+			read(sock, buf, bytes);
+
+			return true;
 		}
 
 		void update()
@@ -182,12 +250,20 @@ struct net
 								on_disconnection(sock, sockets[sock]);
 								close(sock);
 								sockets.erase(sock);
+								senders.erase(sock);
 
 								// if the last connection just dropped, just return.
 								if (sockets.size() == 0) { return; }
 								break;
 							default:
+								if (senders.count(sock) == 0)
+								{ 
+									// this socket hasn't sent anything yet
+									// lets check to see if it's a WS.
+									if (is_client_ws(sock)) { break; }
+								}
 								on_packet(sock, pair.second);
+								senders.insert(sock);
 								break;
 						}
 					}

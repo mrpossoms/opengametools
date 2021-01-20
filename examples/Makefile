@@ -15,6 +15,9 @@ bin:
 bin/%: %.cpp bin ../lib/$(TARGET)/libg.a
 	$(CXX) $(CXXFLAGS) $(INC) $(LIB) $< -o $@ $(LINK)
 
+bin/%.html: %.cpp bin ../lib/$(TARGET)/libg.a
+	$(CXX) $(CXXFLAGS) $(INC) $(LIB) $< -o $@ $(LINK)
+
 .PHONEY: all clean
 
 all:
