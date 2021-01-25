@@ -1,9 +1,10 @@
 TARGET=$(shell $(CXX) -dumpmachine)
 
-CXXFLAGS+=-std=c++11 -g
+CXXFLAGS+=-std=c++11 -g $(pkg-config --cflags glfw3)
 INC+=-I../inc -I../deps/xmath.h/inc
 LIB+=-L../lib/$(TARGET)/
-LINK+=-lg -lpthread
+LINK+=-lg -lpthread -lcrypto
+LINK+=-lglfw3 -lGL -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -ldl
 SRCS=$(wildcard *.cpp)
 
 ../lib/$(TARGET)/libg.a:

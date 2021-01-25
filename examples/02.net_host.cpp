@@ -38,7 +38,7 @@ struct my_core : public g::core
 
 		host.on_packet = [&](int sock, player& p) -> int {
 			chat_msg msg;
-			read(sock, &msg, sizeof(msg));
+			auto bytes = read(sock, &msg, sizeof(msg));
 			msg.to_machine();
 			msg.id = sock;
 
@@ -48,9 +48,9 @@ struct my_core : public g::core
 			for (auto pair : host.sockets)
 			{
 				// don't send the message back to the sender
-				if (pair.first == sock) { continue; }
+				// if (pair.first == sock) { continue; }
 
-				send(pair.first, &msg, sizeof(msg), 0);
+				send(pair.first, &msg, bytes, 0);
 			}
 
 			return 0;

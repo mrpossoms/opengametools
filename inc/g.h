@@ -1,7 +1,9 @@
 #pragma once
 
 #define MTYPE float
+#include <GLFW/glfw3.h>
 #include <xmath.h>
+#include <openssl/sha.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -12,9 +14,11 @@
 #include <unistd.h>
 #include <strings.h>
 #include <fcntl.h>
+#include <assert.h>
 
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include <initializer_list>
 #include <functional>
 #include <thread>
@@ -63,11 +67,20 @@ private:
 	std::string _delim;
 };
 
+
+std::string base64_encode(uint8_t const* buf, size_t len);
+
+
 struct core
 {
 	struct opts
 	{
-
+		const char* name;
+		struct {
+			bool display = true;
+			size_t width = 640;
+			size_t height = 480;
+		} gfx;
 	};
 
 	/**
@@ -189,6 +202,7 @@ struct net
 		bool is_client_ws(int sock)
 		{
 			char buf[1024] = {};
+			std::unordered_map<std::string, std::string> headers;
 			auto bytes = recv(sock, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
 		
 			auto lines = std::string(buf);
@@ -197,8 +211,56 @@ struct net
 			{
 				std::cerr << "[" << line << "]\n"; 
 				if (i == 0 && std::string::npos == line.find("GET")) { return false; }
-
+				else
+				{
+					std::string key;
+					for (auto part : g::split(line, ": "))
+					{
+						if (key.length() == 0) { key = part; }
+						else
+						{
+							headers[key] = part;
+							break;
+						}
+					}
+				}
 				i++;
+			}
+
+			const auto sec_key = "Sec-WebSocket-Key";
+			if (headers.count(sec_key))
+			{
+				char* next = buf;
+				auto key = headers[sec_key] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+				unsigned char hash[SHA_DIGEST_LENGTH];
+				SHA1((const unsigned char*)key.c_str(), key.length(), hash);
+				auto sec_accept = g::base64_encode(hash, SHA_DIGEST_LENGTH);
+
+				{
+					std::string ex_key = "dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+					unsigned char ex_sha[SHA_DIGEST_LENGTH];
+					SHA1((const unsigned char*)ex_key.c_str(), ex_key.length(), ex_sha);
+					auto ex_accept = g::base64_encode(ex_sha, SHA_DIGEST_LENGTH);
+
+					assert(ex_accept == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
+				}
+
+				next += sprintf(next, "HTTP/1.1 101 Switching Protocols\r\n");
+				next += sprintf(next, "Upgrade: websocket\r\n");
+				next += sprintf(next, "Connection: %s\r\n", headers["Connection"].c_str());
+				next += sprintf(next, "Sec-WebSocket-Protocol: %s\r\n", headers["Sec-WebSocket-Protocol"].c_str());
+				next += sprintf(next, "Sec-WebSocket-Extensions: %s\r\n", headers["Sec-WebSocket-Extensions"].c_str());
+				next += sprintf(next, "Sec-WebSocket-Accept: %s\r\n", sec_accept.c_str());
+				next += sprintf(next, "Content-Length: 0\r\n");
+				next += sprintf(next, "\r\n");
+				printf(">> RESPONSE\n");
+				write(1, buf, (next - buf));
+				send(sock, buf, (next - buf), 0);
+				std::cout << "sha: " << hash << "\n"; 
+			}
+			else
+			{
+				return false;
 			}
 
 			// purge the http request we just got
@@ -229,6 +291,8 @@ struct net
 				case 0: { /* timeout occured */ }
 				default:
 				{
+					std::vector<int> disconnected_socks;
+
 					// check all client sockets to see if any have messages
 					for (auto& pair : sockets)
 					{
@@ -249,8 +313,7 @@ struct net
 
 								on_disconnection(sock, sockets[sock]);
 								close(sock);
-								sockets.erase(sock);
-								senders.erase(sock);
+								disconnected_socks.push_back(sock);
 
 								// if the last connection just dropped, just return.
 								if (sockets.size() == 0) { return; }
@@ -260,12 +323,23 @@ struct net
 								{ 
 									// this socket hasn't sent anything yet
 									// lets check to see if it's a WS.
-									if (is_client_ws(sock)) { break; }
+									if (is_client_ws(sock))
+									{
+										senders.insert(sock); 
+										break;
+									}
 								}
 								on_packet(sock, pair.second);
 								senders.insert(sock);
 								break;
 						}
+					}
+
+					// clean up those that have disconnected
+					for (auto sock : disconnected_socks)
+					{
+						sockets.erase(sock);
+						senders.erase(sock);
 					}
 
 					if (FD_ISSET(listen_socket, &rfds))
