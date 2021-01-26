@@ -27,6 +27,8 @@
 #include <stdexcept>
 #include <algorithm>
 
+#include "g.gfx.h"
+
 
 namespace g {
 

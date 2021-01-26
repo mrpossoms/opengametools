@@ -13,6 +13,7 @@ struct texture {};
 struct shader {
 	GLuint program; 
 
+	struct usage;
 	struct uniform_usage {
 		GLuint uni_loc;
 

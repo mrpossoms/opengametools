@@ -4,7 +4,7 @@ CXXFLAGS+=-std=c++11 -g $(pkg-config --cflags glfw3)
 INC+=-I../inc -I../deps/xmath.h/inc
 LIB+=-L../lib/$(TARGET)/
 LINK+=-lg -lpthread -lcrypto
-LINK+=-lglfw3 -lGL -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -ldl
+LINK+=$(shell pkg-config --libs glfw3) -lGL -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -ldl
 SRCS=$(wildcard *.cpp)
 
 ../lib/$(TARGET)/libg.a:
