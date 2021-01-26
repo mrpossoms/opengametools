@@ -1,6 +1,7 @@
 TARGET=$(shell $(CXX) -dumpmachine)
 
 CXXFLAGS+=-std=c++11 -g
+CXXFLAGS+=-D_XOPEN_SOURCE=500 -D_GNU_SOURCE -DGL_GLEXT_PROTOTYPES
 INC+=-I inc -Ideps/xmath.h/inc
 LIB+=
 LINK+=
