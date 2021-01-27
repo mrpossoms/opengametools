@@ -1,4 +1,5 @@
 #pragma once
+#define XMTYPE float
 #include <xmath.h>
 
 #ifdef __linux__
@@ -17,6 +18,20 @@ using namespace xmath;
 
 namespace g {
 namespace gfx {
+
+static bool gl_get_error()
+{
+	GLenum err = GL_NO_ERROR;
+	bool good = true;
+
+	while((err = glGetError()) != GL_NO_ERROR)
+	{
+		std::cerr << "GL_ERROR: 0x" << std::hex << err << std::endl;
+		good = false;
+	}
+
+	return good;
+}
 
 static size_t width();
 static size_t height();
@@ -68,7 +83,7 @@ struct shader {
 				loc = (*it).second;
 			}
 
-			return uniform_usage(loc);
+			return uniform_usage(*this, loc);
 		}
 	};
 
@@ -77,15 +92,13 @@ struct shader {
 	 */
 	struct uniform_usage {
 		GLuint uni_loc;
-
-		uniform_usage(GLuint loc) { uni_loc = loc; }
-
 		usage parent_usage;
-		uniform_usage(usage parent) : parent_usage(parent) { }
+
+		uniform_usage(usage parent, GLuint loc) : parent_usage(parent) { uni_loc = loc; }
 	
 		inline usage mat4 (const mat<4, 4>& m)
 		{
-			glUniformMatrix4fv(uni_loc, false, m.m);
+			glUniformMatrix4fv(uni_loc, 1, false, m.ptr());
 
 			return parent_usage;
 		}
@@ -121,6 +134,7 @@ struct shader_factory
 		assert(gl_get_error());
 
 		// Check the status and exit on failure
+		GLint status;
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 		if (status == GL_FALSE)
 		{
@@ -155,7 +169,91 @@ struct shader_factory
 
 		return *this;
 	}
+
+	template<GLenum ST>
+	shader_factory add_src(const std::string& src)
+	{
+		{ // read and compile the shader
+			shaders[ST] = compile_shader(ST, src.c_str(), (GLsizei)src.length());
+		}
+
+		return *this;
+	}
+
+	shader create()
+	{
+		GLint status;
+		shader out;
+		out.program = glCreateProgram();
+
+		glUseProgram(out.program);
+
+		for (auto shader : shaders)
+		{
+			glAttachShader(out.program, shader.second);
+		}
+
+		assert(gl_get_error());
+		glLinkProgram(out.program);
+
+		glGetProgramiv(out.program, GL_LINK_STATUS, &status);
+		if (status == 0)
+		{
+			GLint log_length;
+			glGetProgramiv(out.program, GL_INFO_LOG_LENGTH, &log_length);
+			if (log_length > 0)
+			{
+				GLchar *log_str = (GLchar *)malloc(log_length);
+				glGetProgramInfoLog(out.program, log_length, &log_length, log_str);
+				std::cerr << "Shader link log: " << log_length << std::endl << log_str << std::endl;
+				write(1, log_str, log_length);
+				free(log_str);
+			}
+			exit(-1);
+		}
+		else
+		{
+			std::cerr << "Linked program " << out.program << std::endl;
+		}
+
+		assert(gl_get_error());
+
+		// Detach all
+		for (auto shader : shaders)
+		{
+			glDetachShader(out.program, shader.second);
+		}
+	}
 };
+
+
+namespace vertex
+{
+	struct pos_uv_norm
+	{
+		vec<3> position;
+		vec<2> uv;
+		vec<3> normal;
+
+		void attributes(GLuint prog)
+		{
+			auto pos_loc = glGetAttribLocation(prog, "a_position");
+			auto uv_loc = glGetAttribLocation(prog, "a_uv");
+			auto norm_loc = glGetAttribLocation(prog, "a_normal");
+
+			glEnableVertexAttribArray(pos_loc);
+			glEnableVertexAttribArray(uv_loc);
+			glEnableVertexAttribArray(norm_loc);
+
+			auto p_size = sizeof(position);
+			auto uv_size = sizeof(uv);
+			
+			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)0);
+			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)p_size);
+			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)(p_size + uv_size));
+		}
+	};
+}
 
 
 template<typename V>
@@ -168,6 +266,12 @@ struct mesh {
 		return shader::usage{};
 	}
 };
+
+
+struct mesh_factory {
+
+};
+
 
 };
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#define MTYPE float
+#define XMTYPE float
 #include <xmath.h>
 #include <openssl/sha.h>
 
