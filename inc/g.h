@@ -2,7 +2,6 @@
 
 #define XMTYPE float
 #include <xmath.h>
-#include <openssl/sha.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -39,7 +38,7 @@ namespace g {
 struct split
 {
 public:
-	struct it 
+	struct it
 	{
 	public:
 		it(std::string &str, std::string delim, size_t pos);
@@ -144,7 +143,6 @@ struct net
 		std::function<void(int socket, T& client)> on_disconnection;
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
-		std::unordered_set<int> senders;
 		std::thread listen_thread;
 		int listen_socket;
 
@@ -155,7 +153,7 @@ struct net
 		}
 
 		/**
-		 * @brief      Calling this method will bind a socker for accepting connections 
+		 * @brief      Calling this method will bind a socker for accepting connections
 		 * to the provided port, then start a seperate thread to manage data received
 		 * from clients, new connections, and disconnection events. This method can
 		 * throw std::runtime_error exceptions for a number of reasons.
@@ -176,12 +174,14 @@ struct net
 			}
 
 			// allow port reuse for quicker restarting
+#ifdef __linux__
 			int use = 1;
 			if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEPORT, (char*)&use, sizeof(use)))
 			{
 				close(listen_socket);
 				throw std::runtime_error("Setting SO_REUSEPORT to listen socket failed");
 			}
+#endif
 
 			// bind the listening sock to port number
 			if (bind(listen_socket, (const struct sockaddr*)&name, sizeof(name)))
@@ -203,76 +203,6 @@ struct net
 					update();
 				}
 			});
-		}
-
-		bool is_client_ws(int sock)
-		{
-			char buf[1024] = {};
-			std::unordered_map<std::string, std::string> headers;
-			auto bytes = recv(sock, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
-		
-			auto lines = std::string(buf);
-			int i = 0;
-			for (auto line : g::split(lines, "\r\n"))
-			{
-				std::cerr << "[" << line << "]\n"; 
-				if (i == 0 && std::string::npos == line.find("GET")) { return false; }
-				else
-				{
-					std::string key;
-					for (auto part : g::split(line, ": "))
-					{
-						if (key.length() == 0) { key = part; }
-						else
-						{
-							headers[key] = part;
-							break;
-						}
-					}
-				}
-				i++;
-			}
-
-			const auto sec_key = "Sec-WebSocket-Key";
-			if (headers.count(sec_key))
-			{
-				char* next = buf;
-				auto key = headers[sec_key] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-				unsigned char hash[SHA_DIGEST_LENGTH];
-				SHA1((const unsigned char*)key.c_str(), key.length(), hash);
-				auto sec_accept = g::base64_encode(hash, SHA_DIGEST_LENGTH);
-
-				{
-					std::string ex_key = "dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-					unsigned char ex_sha[SHA_DIGEST_LENGTH];
-					SHA1((const unsigned char*)ex_key.c_str(), ex_key.length(), ex_sha);
-					auto ex_accept = g::base64_encode(ex_sha, SHA_DIGEST_LENGTH);
-
-					assert(ex_accept == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
-				}
-
-				next += sprintf(next, "HTTP/1.1 101 Switching Protocols\r\n");
-				next += sprintf(next, "Upgrade: websocket\r\n");
-				next += sprintf(next, "Connection: %s\r\n", headers["Connection"].c_str());
-				next += sprintf(next, "Sec-WebSocket-Protocol: %s\r\n", headers["Sec-WebSocket-Protocol"].c_str());
-				next += sprintf(next, "Sec-WebSocket-Extensions: %s\r\n", headers["Sec-WebSocket-Extensions"].c_str());
-				next += sprintf(next, "Sec-WebSocket-Accept: %s\r\n", sec_accept.c_str());
-				next += sprintf(next, "Content-Length: 0\r\n");
-				next += sprintf(next, "\r\n");
-				printf(">> RESPONSE\n");
-				write(1, buf, (next - buf));
-				send(sock, buf, (next - buf), 0);
-				std::cout << "sha: " << hash << "\n"; 
-			}
-			else
-			{
-				return false;
-			}
-
-			// purge the http request we just got
-			read(sock, buf, bytes);
-
-			return true;
 		}
 
 		void update()
@@ -308,7 +238,7 @@ struct net
 						// check the connection status of the client socket
 						// otherwise, pass the message over to the lambda
 						char c;
-						switch (recv(sock, &c, 1, MSG_PEEK | MSG_DONTWAIT))
+						switch (recv(sock, &c, 1, MSG_PEEK))
 						{
 							case -1:
 							case 0:
@@ -325,18 +255,7 @@ struct net
 								if (sockets.size() == 0) { return; }
 								break;
 							default:
-								if (senders.count(sock) == 0)
-								{ 
-									// this socket hasn't sent anything yet
-									// lets check to see if it's a WS.
-									if (is_client_ws(sock))
-									{
-										senders.insert(sock); 
-										break;
-									}
-								}
 								on_packet(sock, pair.second);
-								senders.insert(sock);
 								break;
 						}
 					}
@@ -345,7 +264,6 @@ struct net
 					for (auto sock : disconnected_socks)
 					{
 						sockets.erase(sock);
-						senders.erase(sock);
 					}
 
 					if (FD_ISSET(listen_socket, &rfds))
@@ -394,7 +312,7 @@ struct net
 			struct sockaddr_in host_addr = {};
 			// fill in host_addr with resolved info
 			bcopy(
-				(char *)host->h_addr,
+				(char *)host->h_addr_list[0],
 				(char *)&host_addr.sin_addr.s_addr,
 				host->h_length
 			);

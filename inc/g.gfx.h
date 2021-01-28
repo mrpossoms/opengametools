@@ -35,7 +35,7 @@ static bool gl_get_error()
 
 static size_t width();
 static size_t height();
-static float aspect();  
+static float aspect();
 
 struct texture {};
 
@@ -58,9 +58,9 @@ struct shader {
 
 		template<typename V>
 		usage attach_attributes()
-		{ 
+		{
 			V::attributes();
-			return *this; 
+			return *this;
 		}
 
 		uniform_usage set_uniform(const std::string& name)
@@ -70,7 +70,7 @@ struct shader {
 			if (it == shader_ref.uni_locs.end())
 			{
 				loc = glGetUniformLocation(shader_ref.program, name.c_str());
-			
+
 				if (loc > -1)
 				{
 					// TODO: handle the missing uniform better
@@ -95,7 +95,7 @@ struct shader {
 		usage parent_usage;
 
 		uniform_usage(usage parent, GLuint loc) : parent_usage(parent) { uni_loc = loc; }
-	
+
 		inline usage mat4 (const mat<4, 4>& m)
 		{
 			glUniformMatrix4fv(uni_loc, 1, false, m.ptr());
@@ -162,8 +162,8 @@ struct shader_factory
 			lseek(fd, SEEK_SET, 0);
 			read(fd, src, size);
 			close(fd);
-			delete src;
-			
+			delete[] src;
+
 			shaders[ST] = compile_shader(ST, src, (GLsizei)size);
 		}
 
@@ -223,6 +223,8 @@ struct shader_factory
 		{
 			glDetachShader(out.program, shader.second);
 		}
+
+		return out;
 	}
 };
 
@@ -247,7 +249,7 @@ namespace vertex
 
 			auto p_size = sizeof(position);
 			auto uv_size = sizeof(uv);
-			
+
 			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)0);
 			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)p_size);
 			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)(p_size + uv_size));
@@ -261,9 +263,9 @@ struct mesh {
 	std::vector<uint32_t> indices;
 	std::vector<V> vertices;
 
-	shader::usage using_shader (const shader& shader)
+	shader::usage using_shader (shader& shader)
 	{
-		return shader::usage{};
+		return {shader};
 	}
 };
 
