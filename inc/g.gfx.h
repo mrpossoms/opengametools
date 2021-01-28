@@ -39,12 +39,15 @@ static float aspect();
 
 struct texture {};
 
+
 /**
  * @brief      { struct_description }
  */
 struct shader {
 	GLuint program;
 	std::unordered_map<std::string, GLint> uni_locs;
+
+	shader& bind() { glUseProgram(program); return *this; }
 
 	struct uniform_usage;
 	/**
@@ -53,13 +56,18 @@ struct shader {
 	 */
 	struct usage {
 		shader& shader_ref;
+		size_t vertices, indices;
 
-		usage (shader& ref) : shader_ref(ref) {}
-
-		template<typename V>
-		usage attach_attributes()
+		usage (shader& ref, size_t verts, size_t inds) : shader_ref(ref)
 		{
-			V::attributes();
+			vertices = verts;
+			indices = inds;
+		}
+
+		template<typename MV>
+		usage attach_attributes(const shader& shader)
+		{
+			MV::attributes(shader.program);
 			return *this;
 		}
 
@@ -84,6 +92,20 @@ struct shader {
 			}
 
 			return uniform_usage(*this, loc);
+		}
+
+		usage& draw_tri_fan()
+		{
+			if (indices > 0)
+			{
+				glDrawElements(GL_TRIANGLE_FAN, indices, GL_UNSIGNED_INT, NULL);
+			}
+			else
+			{
+				glDrawArrays(GL_TRIANGLE_FAN, 0, vertices);
+			}
+
+			return *this;
 		}
 	};
 
@@ -186,8 +208,6 @@ struct shader_factory
 		shader out;
 		out.program = glCreateProgram();
 
-		glUseProgram(out.program);
-
 		for (auto shader : shaders)
 		{
 			glAttachShader(out.program, shader.second);
@@ -237,22 +257,22 @@ namespace vertex
 		vec<2> uv;
 		vec<3> normal;
 
-		void attributes(GLuint prog)
+		static void attributes(GLuint prog)
 		{
 			auto pos_loc = glGetAttribLocation(prog, "a_position");
 			auto uv_loc = glGetAttribLocation(prog, "a_uv");
 			auto norm_loc = glGetAttribLocation(prog, "a_normal");
 
-			glEnableVertexAttribArray(pos_loc);
-			glEnableVertexAttribArray(uv_loc);
-			glEnableVertexAttribArray(norm_loc);
+			if (pos_loc > -1) glEnableVertexAttribArray(pos_loc);
+			if (uv_loc > -1) glEnableVertexAttribArray(uv_loc);
+			if (norm_loc > -1) glEnableVertexAttribArray(norm_loc);
 
 			auto p_size = sizeof(position);
 			auto uv_size = sizeof(uv);
 
-			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)0);
-			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)p_size);
-			glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)(p_size + uv_size));
+			if (pos_loc > -1) glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)0);
+			if (uv_loc > -1) glVertexAttribPointer(uv_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)p_size);
+			if (norm_loc > -1) glVertexAttribPointer(norm_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)(p_size + uv_size));
 		}
 	};
 }
@@ -260,20 +280,56 @@ namespace vertex
 
 template<typename V>
 struct mesh {
+	GLuint vbo, ibo;
 	std::vector<uint32_t> indices;
 	std::vector<V> vertices;
 
+	mesh& set_vertices(const std::vector<V>& verts)
+	{
+		vertices = verts;
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(
+			GL_ARRAY_BUFFER,
+			verts.size() * sizeof(V),
+			verts.data(),
+			GL_STATIC_DRAW
+		);
+
+		return *this;
+	}
+
 	shader::usage using_shader (shader& shader)
 	{
-		return {shader};
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		if (indices.size() > 0)
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		}
+
+		shader.bind();
+		shader::usage usage = {shader, vertices.size(), indices.size()};
+		usage.attach_attributes<V>(shader);
+		return usage;
 	}
 };
 
 
 struct mesh_factory {
+	static mesh<vertex::pos_uv_norm> plane()
+	{
+		mesh<vertex::pos_uv_norm> p;
+		glGenBuffers(2, &p.vbo);
 
+		p.set_vertices({
+			{{-1, 1, 0}, {1, 1}, {0, 0, 1}},
+			{{ 1, 1, 0}, {0, 1}, {0, 0, 1}},
+			{{ 1,-1, 0}, {0, 0}, {0, 0, 1}},
+			{{-1,-1, 0}, {1, 0}, {0, 0, 1}},
+		});
+
+		return p;
+	}
 };
-
 
 };
 };

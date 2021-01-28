@@ -1,7 +1,7 @@
 $(eval OS := $(shell uname))
 TARGET=$(shell $(CXX) -dumpmachine)
 
-CXXFLAGS+=-std=c++11 -g $(pkg-config --cflags glfw3)
+CXXFLAGS+=-std=c++17 -g $(pkg-config --cflags glfw3)
 INC+=-I../inc -I../deps/xmath.h/inc
 LIB+=-L../lib/$(TARGET)/
 LINK+=-lg
