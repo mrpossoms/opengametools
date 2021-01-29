@@ -13,7 +13,7 @@ else
 	CXXFLAGS += -D_XOPEN_SOURCE=500 -D_GNU_SOURCE -DGL_GLEXT_PROTOTYPES
 endif
 
-LINK+=-lpthread
+LINK+=-lpthread -lpng
 SRCS=$(wildcard *.cpp)
 
 ../lib/$(TARGET)/libg.a:

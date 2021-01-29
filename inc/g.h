@@ -27,12 +27,6 @@
 
 #include "g.gfx.h"
 
-// #define G_TERM_GREEN "\033[0;32m"
-// #define G_TERM_RED "\033[1;31m"
-// #define G_TERM_YELLOW "\033[1;33m"
-// #define G_TERM_COLOR_OFF "\033[0m"
-
-
 namespace g {
 
 struct split

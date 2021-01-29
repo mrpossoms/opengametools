@@ -8,11 +8,17 @@
 #endif
 
 #include <GLFW/glfw3.h>
+#include <png.h>
 
 #ifdef __APPLE__
 #undef __gl_h_
 #include <OpenGL/gl3.h>
 #endif
+
+#define G_TERM_GREEN "\033[0;32m"
+#define G_TERM_RED "\033[1;31m"
+#define G_TERM_YELLOW "\033[1;33m"
+#define G_TERM_COLOR_OFF "\033[0m"
 
 using namespace xmath;
 
@@ -37,7 +43,187 @@ static size_t width();
 static size_t height();
 static float aspect();
 
-struct texture {};
+struct texture 
+{
+	size_t width, height;
+	GLuint texture;
+
+	void set_pixels(size_t w, size_t h, void* data, GLenum format=GL_RGBA, GLenum type=GL_UNSIGNED_BYTE)
+	{
+		width = w;
+		height = h;
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, data);
+	}
+
+	void bind() const { glBindTexture(GL_TEXTURE_2D, texture); }
+};
+
+
+struct texture_factory
+{
+	int width, height, depth;
+	void* data = nullptr;
+	GLenum min_filter = GL_LINEAR, mag_filter = GL_LINEAR;
+	GLenum wrap_s = GL_CLAMP_TO_EDGE, wrap_t = GL_CLAMP_TO_EDGE;
+
+	~texture_factory()
+	{
+		free(data);
+	}
+
+	void abort(std::string message)
+	{
+		std::cerr << message << std::endl;
+		exit(-1);
+	}
+
+	texture_factory& from_png(const std::string& path)
+	{
+		char header[8];    // 8 is the maximum size that can be checked
+		png_structp png_ptr = {};
+		png_infop info_ptr;
+		png_bytep* row_pointers;
+		png_byte color_type;
+
+		std::cerr << "loading texture '" <<  path << "'... ";
+
+		/* open file and test for it being a png */
+		FILE *fp = fopen(path.c_str(), "rb");
+		if (!fp)
+		{
+			fprintf(stderr, G_TERM_RED "[read_png_file] File %s could not be opened for reading" G_TERM_COLOR_OFF, path.c_str());
+			return *this;
+		}
+
+		fread(header, 1, 8, fp);
+		if (png_sig_cmp((png_bytep)header, 0, 8))
+		{
+			fprintf(stderr, G_TERM_RED "[read_png_file] File %s is not recognized as a PNG file" G_TERM_COLOR_OFF, path.c_str());
+		}
+
+
+		/* initialize stuff */
+		png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+
+		if (!png_ptr)
+			abort(G_TERM_RED "[read_png_file] png_create_read_struct failed" G_TERM_COLOR_OFF);
+
+		info_ptr = png_create_info_struct(png_ptr);
+		if (!info_ptr)
+			abort(G_TERM_RED "[read_png_file] png_create_info_struct failed" G_TERM_COLOR_OFF);
+
+		if (setjmp(png_jmpbuf(png_ptr)))
+			abort(G_TERM_RED "[read_png_file] Error during init_io" G_TERM_COLOR_OFF);
+
+		png_init_io(png_ptr, fp);
+		png_set_sig_bytes(png_ptr, 8);
+
+		png_read_info(png_ptr, info_ptr);
+
+		width = png_get_image_width(png_ptr, info_ptr);
+		height = png_get_image_height(png_ptr, info_ptr);
+		color_type = png_get_color_type(png_ptr, info_ptr);
+		auto bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+
+		//number_of_passes = png_set_interlace_handling(png_ptr);
+		png_read_update_info(png_ptr, info_ptr);
+
+		/* read file */
+		if (setjmp(png_jmpbuf(png_ptr)))
+		{
+			abort(G_TERM_RED "[read_png_file] Error during read_image" G_TERM_COLOR_OFF);
+		}
+
+		switch (color_type) {
+			case PNG_COLOR_TYPE_RGBA:
+				depth = 4;
+				break;
+			case PNG_COLOR_TYPE_PALETTE:
+			case PNG_COLOR_TYPE_RGB:
+				depth = 3;
+				break;
+		}
+
+		row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
+		char* pixel_buf = (char*)calloc(depth * width * height, sizeof(char));
+
+		for (int y = 0; y < height; y++)
+		{
+			row_pointers[y] = (png_byte*) malloc(png_get_rowbytes(png_ptr,info_ptr));
+			assert(row_pointers[y]);
+		}
+
+		png_read_image(png_ptr, row_pointers);
+
+		int bytes_per_row = png_get_rowbytes(png_ptr,info_ptr);
+		for (int y = 0; y < height; y++)
+		{
+			memcpy(pixel_buf + (y * bytes_per_row), row_pointers[y], bytes_per_row);
+			free(row_pointers[y]);
+		}
+		free(row_pointers);
+		fclose(fp);
+
+		data = (void*)pixel_buf;
+
+		std::cerr << G_TERM_GREEN "OK" G_TERM_COLOR_OFF << std::endl;
+
+		return *this;
+	}
+
+	texture_factory& pixelated()
+	{
+		min_filter = mag_filter = GL_NEAREST;
+		return *this;
+	}
+
+	texture_factory& smooth()
+	{
+		min_filter = mag_filter = GL_LINEAR;
+		return *this;		
+	}
+
+	texture_factory& clamped()
+	{
+		wrap_s = wrap_t = GL_CLAMP_TO_EDGE;
+		return *this;		
+	}
+
+	texture_factory& repeating()
+	{
+		wrap_s = wrap_t = GL_REPEAT;
+		return *this;		
+	}
+
+	texture create()
+	{
+		texture out;
+		glGenTextures(1, &out.texture);
+
+		out.bind();
+
+		GLenum gl_color_type;
+		switch (depth)
+		{
+			case 4:
+				gl_color_type = GL_RGBA;
+				break;
+			case 3:
+				gl_color_type = GL_RGB;
+				break;
+		}
+
+		out.set_pixels(width, height, data, gl_color_type);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		return out;
+	}
+};
 
 
 /**
@@ -57,11 +243,13 @@ struct shader {
 	struct usage {
 		shader& shader_ref;
 		size_t vertices, indices;
+		int texture_unit;
 
 		usage (shader& ref, size_t verts, size_t inds) : shader_ref(ref)
 		{
 			vertices = verts;
 			indices = inds;
+			texture_unit = 0;
 		}
 
 		template<typename MV>
@@ -79,7 +267,7 @@ struct shader {
 			{
 				loc = glGetUniformLocation(shader_ref.program, name.c_str());
 
-				if (loc > -1)
+				if (loc < 0)
 				{
 					// TODO: handle the missing uniform better
 					std::cerr << "uniform '" << name << "' doesn't exist\n";
@@ -94,18 +282,29 @@ struct shader {
 			return uniform_usage(*this, loc);
 		}
 
-		usage& draw_tri_fan()
+		uniform_usage operator[](const std::string& name)
+		{
+			return set_uniform(name);
+		}
+
+		template<GLenum PRIM>
+		usage& draw()
 		{
 			if (indices > 0)
 			{
-				glDrawElements(GL_TRIANGLE_FAN, indices, GL_UNSIGNED_INT, NULL);
+				glDrawElements(PRIM, indices, GL_UNSIGNED_INT, NULL);
 			}
 			else
 			{
-				glDrawArrays(GL_TRIANGLE_FAN, 0, vertices);
+				glDrawArrays(PRIM, 0, vertices);
 			}
 
 			return *this;
+		}
+
+		usage& draw_tri_fan()
+		{
+			return draw<GL_TRIANGLE_FAN>();
 		}
 	};
 
@@ -114,14 +313,23 @@ struct shader {
 	 */
 	struct uniform_usage {
 		GLuint uni_loc;
-		usage parent_usage;
+		usage& parent_usage;
 
-		uniform_usage(usage parent, GLuint loc) : parent_usage(parent) { uni_loc = loc; }
+		uniform_usage(usage& parent, GLuint loc) : parent_usage(parent) { uni_loc = loc; }
 
 		inline usage mat4 (const mat<4, 4>& m)
 		{
 			glUniformMatrix4fv(uni_loc, 1, false, m.ptr());
 
+			return parent_usage;
+		}
+
+		inline usage texture(const texture& tex)
+		{
+			glActiveTexture(GL_TEXTURE0 + parent_usage.texture_unit);
+			tex.bind();
+			glUniform1i(uni_loc, parent_usage.texture_unit);
+			parent_usage.texture_unit++;
 			return parent_usage;
 		}
 	};
@@ -292,6 +500,20 @@ struct mesh {
 			GL_ARRAY_BUFFER,
 			verts.size() * sizeof(V),
 			verts.data(),
+			GL_STATIC_DRAW
+		);
+
+		return *this;
+	}
+
+	mesh& set_indices(const std::vector<uint32_t>& inds)
+	{
+		indices = inds;
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+		glBufferData(
+			GL_ELEMENT_ARRAY_BUFFER,
+			inds.size() * sizeof(uint32_t),
+			inds.data(),
 			GL_STATIC_DRAW
 		);
 
