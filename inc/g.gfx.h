@@ -124,6 +124,7 @@ struct texture_factory
 		height = png_get_image_height(png_ptr, info_ptr);
 		color_type = png_get_color_type(png_ptr, info_ptr);
 		auto bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+		auto channels = png_get_channels(png_ptr, info_ptr);
 
 		//number_of_passes = png_set_interlace_handling(png_ptr);
 		png_read_update_info(png_ptr, info_ptr);
@@ -146,16 +147,15 @@ struct texture_factory
 
 		row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
 		char* pixel_buf = (char*)calloc(depth * width * height, sizeof(char));
+		int bytes_per_row = png_get_rowbytes(png_ptr,info_ptr);
 
 		for (int y = 0; y < height; y++)
 		{
-			row_pointers[y] = (png_byte*) malloc(png_get_rowbytes(png_ptr,info_ptr));
+			row_pointers[y] = (png_byte*) malloc(bytes_per_row); // 
 			assert(row_pointers[y]);
 		}
 
 		png_read_image(png_ptr, row_pointers);
-
-		int bytes_per_row = png_get_rowbytes(png_ptr,info_ptr);
 		for (int y = 0; y < height; y++)
 		{
 			memcpy(pixel_buf + (y * bytes_per_row), row_pointers[y], bytes_per_row);

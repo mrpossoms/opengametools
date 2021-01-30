@@ -38,7 +38,7 @@ struct my_core : public g::core
 
 		plane = g::gfx::mesh_factory::plane();
 
-		grid_tex = g::gfx::texture_factory{}.from_png("data/tex/test.png").create();
+		grid_tex = g::gfx::texture_factory{}.from_png("data/tex/brick.color.png").create();
 
 		return true;
 	}
@@ -50,7 +50,7 @@ struct my_core : public g::core
 
 		t += dt;
 
-		auto model = mat4::rotation({0, 1, 0}, t) * mat4::translation({0, 0, -2});
+		auto model = mat4::rotation({0, 1, 0}, t) * mat4::translation({0, 0, -1});
 		auto proj = mat4::perspective(0.1, 10, M_PI / 2, 640.0 / 480.0);
 
 		plane.using_shader(basic_shader)
