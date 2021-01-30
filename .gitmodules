@@ -1,3 +1,0 @@
-[submodule "deps/xmath.h"]
-	path = deps/xmath.h
-	url = git@github.com:mrpossoms/xmath.h.git

@@ -1,0 +1,24 @@
+location: gitman_sources
+sources:
+  - name: xmath.h 
+    type: git
+    repo: https://github.com/mrpossoms/xmath.h.git
+    sparse_paths:
+      -
+    rev: master
+    link: deps/xmath.h
+    scripts:
+      -
+sources_locked:
+  - name: opengametools
+    type: git
+    repo: git@github.com:jpaver/opengametools.git
+    sparse_paths:
+      -
+    rev: master
+    link: deps/opengametools
+    scripts:
+      -
+default_group: ''
+groups:
+  -
