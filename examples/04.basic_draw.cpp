@@ -51,7 +51,7 @@ struct my_core : public g::core
 		t += dt;
 
 		auto model = mat4::rotation({0, 1, 0}, t) * mat4::translation({0, 0, -1});
-		auto proj = mat4::perspective(0.1, 10, M_PI / 2, 640.0 / 480.0);
+		auto proj = mat4::perspective(0.1, 10, M_PI / 2, g::gfx::aspect());
 
 		plane.using_shader(basic_shader)
 		["u_model"].mat4(model)

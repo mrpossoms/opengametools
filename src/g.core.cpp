@@ -1,23 +1,23 @@
 #include "g.h"
 #include <chrono>
 
+GLFWwindow* g::gfx::GLFW_WIN;
+
 void g::core::start(const core::opts& opts)
 {
-	GLFWwindow* glfw_win = nullptr;
-
 	if (opts.gfx.display)
 	{
 		if (!glfwInit()) { throw std::runtime_error("glfwInit() failed"); }
 	
-		glfw_win = glfwCreateWindow(opts.gfx.width, opts.gfx.height, opts.name ? opts.name : "", NULL, NULL);
+		g::gfx::GLFW_WIN = glfwCreateWindow(opts.gfx.width, opts.gfx.height, opts.name ? opts.name : "", NULL, NULL);
 	
-		if (!glfw_win)
+		if (!g::gfx::GLFW_WIN)
 		{
 			glfwTerminate();
 			throw std::runtime_error("glfwCreateWindow() returned NULL");
 		}
 
-		glfwMakeContextCurrent(glfw_win);
+		glfwMakeContextCurrent(g::gfx::GLFW_WIN);
 	}
 
 	if (!initialize()) { throw std::runtime_error("User initialize() call failed"); }
@@ -34,11 +34,11 @@ void g::core::start(const core::opts& opts)
 		update(dt.count());
 		t_1 = t_0;
 
-		if (glfw_win)
+		if (g::gfx::GLFW_WIN)
 		{
-			glfwSwapBuffers(glfw_win);
+			glfwSwapBuffers(g::gfx::GLFW_WIN);
 			glfwPollEvents();
-			running = !glfwWindowShouldClose(glfw_win);
+			running = !glfwWindowShouldClose(g::gfx::GLFW_WIN);
 		}
 	}
 }

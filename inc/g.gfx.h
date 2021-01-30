@@ -39,32 +39,63 @@ static bool gl_get_error()
 	return good;
 }
 
-static size_t width();
-static size_t height();
-static float aspect();
+extern GLFWwindow* GLFW_WIN;
+
+static size_t width()
+{
+	int width, height;
+	glfwGetFramebufferSize(GLFW_WIN, &width, &height);
+	return width;
+}
+
+static size_t height()
+{
+	int width, height;
+	glfwGetFramebufferSize(GLFW_WIN, &width, &height);
+	return height;
+}
+
+static float aspect()
+{
+	int width, height;
+	glfwGetFramebufferSize(GLFW_WIN, &width, &height);
+	return width / (float)height;
+}
 
 struct texture 
 {
+	GLenum type;
 	size_t width, height;
-	GLuint texture;
+	GLuint texture = (GLuint)-1;
 
-	void set_pixels(size_t w, size_t h, void* data, GLenum format=GL_RGBA, GLenum type=GL_UNSIGNED_BYTE)
+	void set_pixels(size_t w, size_t h, void* data, GLenum format=GL_RGBA, GLenum storage=GL_UNSIGNED_BYTE, GLenum t=GL_TEXTURE_2D)
 	{
 		width = w;
 		height = h;
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, data);
+		type = t;
+		glTexImage2D(type, 0, format, width, height, 0, format, storage, data);
 	}
 
-	void bind() const { glBindTexture(GL_TEXTURE_2D, texture); }
+	void bind() const { glBindTexture(type, texture); }
 };
 
 
 struct texture_factory
 {
-	int width, height, depth;
+	int width, height;
 	void* data = nullptr;
+	GLenum texture_type;
 	GLenum min_filter = GL_LINEAR, mag_filter = GL_LINEAR;
 	GLenum wrap_s = GL_CLAMP_TO_EDGE, wrap_t = GL_CLAMP_TO_EDGE;
+	GLenum color_type = GL_RGBA;
+	GLenum storage_type = GL_UNSIGNED_BYTE;
+
+	texture_factory(int w=0, int h=0, GLenum type=GL_TEXTURE_2D)
+	{
+		texture_type = type;
+		width = w;
+		height = h;
+	}
 
 	~texture_factory()
 	{
@@ -83,7 +114,7 @@ struct texture_factory
 		png_structp png_ptr = {};
 		png_infop info_ptr;
 		png_bytep* row_pointers;
-		png_byte color_type;
+		png_byte png_color_type;
 
 		std::cerr << "loading texture '" <<  path << "'... ";
 
@@ -122,9 +153,17 @@ struct texture_factory
 
 		width = png_get_image_width(png_ptr, info_ptr);
 		height = png_get_image_height(png_ptr, info_ptr);
-		color_type = png_get_color_type(png_ptr, info_ptr);
+		png_color_type = png_get_color_type(png_ptr, info_ptr);
 		auto bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 		auto channels = png_get_channels(png_ptr, info_ptr);
+		auto color_depth = channels * (bit_depth >> 3);
+
+		switch (bit_depth)
+		{
+			case 8:
+				storage_type = GL_UNSIGNED_BYTE;
+				break;
+		}
 
 		//number_of_passes = png_set_interlace_handling(png_ptr);
 		png_read_update_info(png_ptr, info_ptr);
@@ -135,18 +174,18 @@ struct texture_factory
 			abort(G_TERM_RED "[read_png_file] Error during read_image" G_TERM_COLOR_OFF);
 		}
 
-		switch (color_type) {
+		switch (png_color_type) {
 			case PNG_COLOR_TYPE_RGBA:
-				depth = 4;
+				color_type = GL_RGBA;
 				break;
 			case PNG_COLOR_TYPE_PALETTE:
 			case PNG_COLOR_TYPE_RGB:
-				depth = 3;
+				color_type = GL_RGB;
 				break;
 		}
 
 		row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
-		char* pixel_buf = (char*)calloc(depth * width * height, sizeof(char));
+		char* pixel_buf = (char*)calloc(color_depth * width * height, sizeof(char));
 		int bytes_per_row = png_get_rowbytes(png_ptr,info_ptr);
 
 		for (int y = 0; y < height; y++)
@@ -168,6 +207,20 @@ struct texture_factory
 
 		std::cerr << G_TERM_GREEN "OK" G_TERM_COLOR_OFF << std::endl;
 
+		return *this;
+	}
+
+	texture_factory& color()
+	{
+		color_type = GL_RGBA;
+		storage_type = GL_UNSIGNED_BYTE;
+		return *this;
+	}
+
+	texture_factory& depth()
+	{
+		color_type = GL_DEPTH_COMPONENT;
+		storage_type = GL_UNSIGNED_SHORT;
 		return *this;
 	}
 
@@ -198,33 +251,109 @@ struct texture_factory
 	texture create()
 	{
 		texture out;
+		out.type = texture_type;
 		glGenTextures(1, &out.texture);
+		assert(gl_get_error());
 
 		out.bind();
-
-		GLenum gl_color_type;
-		switch (depth)
-		{
-			case 4:
-				gl_color_type = GL_RGBA;
-				break;
-			case 3:
-				gl_color_type = GL_RGB;
-				break;
-		}
-
-		out.set_pixels(width, height, data, gl_color_type);
+		assert(gl_get_error());
+		out.set_pixels(width, height, data, color_type, storage_type);
+		assert(gl_get_error());
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
 		glGenerateMipmap(GL_TEXTURE_2D);
+		assert(gl_get_error());
 
 		return out;
 	}
 };
 
+
+struct framebuffer
+{
+	GLuint fbo;
+	size_t width, height;
+	texture color;
+	texture depth;
+
+	void bind_as_target()
+	{
+		glViewport(0, 0, width, height);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	}
+
+	void unbind_as_target()
+	{
+		if (color.texture != (GLuint)-1)
+		{
+			color.bind();
+			glGenerateMipmap(GL_TEXTURE_2D);
+		}
+
+		glViewport(0, 0, g::gfx::width(), g::gfx::height());
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+};
+
+
+struct framebuffer_factory
+{
+	int width, height;
+	texture color_tex, depth_tex;
+
+	framebuffer_factory(int w, int h)
+	{
+		width = w;
+		height = h;
+	}
+
+	framebuffer_factory& color()
+	{
+		color_tex = texture_factory{ width, height }.color().clamped().smooth().create();
+		return *this;
+	}
+
+	framebuffer_factory& depth()
+	{
+		depth_tex = texture_factory{ width, height }.depth().clamped().smooth().create();
+		return *this;
+	}
+
+	framebuffer create()
+	{
+		framebuffer fb;
+
+		fb.width = width;
+		fb.height = height;
+		fb.color = color_tex;
+		fb.depth = depth_tex; 
+		glGenFramebuffers(1, &fb.fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
+		assert(gl_get_error());
+
+		if (color_tex.texture != (GLuint)-1)
+		{
+			color_tex.bind();
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_tex.texture, 0);
+		}
+
+		if (depth_tex.texture != (GLuint)-1)
+		{
+			depth_tex.bind();
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_tex.texture, 0);
+		}
+
+		auto fb_stat = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		assert(fb_stat == GL_FRAMEBUFFER_COMPLETE);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		return fb;
+	}
+};
 
 /**
  * @brief      { struct_description }
