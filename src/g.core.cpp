@@ -20,6 +20,9 @@ void g::core::start(const core::opts& opts)
 		glfwMakeContextCurrent(g::gfx::GLFW_WIN);
 	}
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	if (!initialize()) { throw std::runtime_error("User initialize() call failed"); }
 
 	running = true;

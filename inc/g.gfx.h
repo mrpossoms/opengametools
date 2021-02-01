@@ -1,6 +1,7 @@
 #pragma once
 #define XMTYPE float
 #include <xmath.h>
+#include <g.game.h>
 
 #ifdef __linux__
 #include <GL/glx.h>
@@ -385,6 +386,13 @@ struct shader {
 		usage attach_attributes(const shader& shader)
 		{
 			MV::attributes(shader.program);
+			return *this;
+		}
+
+		usage set_camera(const g::game::camera& cam)
+		{
+			this->set_uniform("u_view").mat4(cam.view());
+			this->set_uniform("u_proj").mat4(cam.projection(aspect()));
 			return *this;
 		}
 

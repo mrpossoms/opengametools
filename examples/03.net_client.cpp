@@ -45,6 +45,10 @@ struct my_core : public g::core
 				std::cerr << "connected!\n";
 				client.listen();				
 			}
+			else
+			{
+				std::cerr << "connection failure\n";
+			}
 		}
 
 		chat_msg out;
