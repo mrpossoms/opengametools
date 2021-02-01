@@ -52,9 +52,15 @@ struct player_info
 	uint8_t index;
 };
 
+struct bullet : public mover
+{
+	float life;
+};
+
 struct player : public mover
 {
 	float angle;
+	float cool_down;
 	uint8_t hp;
 	uint8_t shooting;
 
@@ -75,7 +81,7 @@ struct game_state_hdr
 struct game_state
 {
 	g::bounded_list<player, 10> players;
-	g::bounded_list<mover, 100> bullets;
+	g::bounded_list<bullet, 100> bullets;
 };
 
 struct zappers : public g::core
@@ -91,7 +97,7 @@ struct zappers : public g::core
 
 	g::gfx::shader basic_shader;
 	g::gfx::mesh<g::gfx::vertex::pos_uv_norm> plane;
-	g::gfx::texture player_tex, bg_tex;
+	g::gfx::texture player_tex, bg_tex, bolt_tex;
 	g::game::camera cam;
 
 	virtual bool initialize()
@@ -103,6 +109,7 @@ struct zappers : public g::core
 			plane = g::gfx::mesh_factory::plane();
 			player_tex = g::gfx::texture_factory{}.from_png("data/tex/ship.png").pixelated().create();
 			bg_tex = g::gfx::texture_factory{}.from_png("data/tex/nebula.png").pixelated().create();
+			bolt_tex = g::gfx::texture_factory{}.from_png("data/tex/bolt.png").pixelated().create();
 		}
 
 		{ // server behaviors
@@ -153,7 +160,7 @@ struct zappers : public g::core
 				state.bullets.clear();
 				for (auto i = 0; i < msg.bullet_count; i++)
 				{
-					mover b;
+					bullet b;
 					read(sock, &b, sizeof(b));
 					b.to_machine();
 					state.bullets.push_back(b);
@@ -174,12 +181,40 @@ struct zappers : public g::core
 		{
 			for (int i = 0; i < state.players.size(); i++)
 			{
+				auto& cmd = commands[i];
 				auto& player = state.players[i];
 				auto q = quat::from_axis_angle({0, 0, 1}, player.angle);
-				auto thrust = q.rotate({commands[i].thrust[0], commands[i].thrust[1], 0}) * dt;
+				auto thrust = q.rotate({cmd.thrust[0], cmd.thrust[1], 0}) * dt;
 				player.velocity += thrust.slice<2>(0);
-				player.angle += commands[i].ang_vel * dt;
+				player.angle += cmd.ang_vel * dt;
+				player.cool_down -= dt;
 				player.update(dt);
+
+				if (cmd.shooting && player.cool_down <= 0)
+				{
+					auto vel = quat::from_axis_angle({0, 0, 1}, player.angle)
+							   .rotate({0, 10, 0})
+							   .slice<2>();
+
+					state.bullets.push_back({
+						player.position,
+						player.velocity + vel,
+						5
+					});
+
+					player.cool_down = 0.25;
+				}
+			}
+
+			for (int i = 0; i < state.bullets.size(); i++)
+			{
+				auto& bullet = state.bullets[i];
+				bullet.update(dt);
+				bullet.life -= dt;
+				if (bullet.life <= 0)
+				{
+					state.bullets.remove_at(i);
+				}
 			}
 
 			for (auto& player : host.sockets)
@@ -236,6 +271,7 @@ struct zappers : public g::core
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_D) == GLFW_PRESS) cmd.thrust += { 1,  0 };
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_LEFT) == GLFW_PRESS) cmd.ang_vel = 1;
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_RIGHT) == GLFW_PRESS) cmd.ang_vel = -1;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_SPACE) == GLFW_PRESS) cmd.shooting = 1;
 
 		if (!is_host)
 		{
@@ -269,6 +305,16 @@ struct zappers : public g::core
 			.set_camera(cam)
 			["u_model"].mat4(model)
 			["u_tex"].texture(player_tex)
+			.draw<GL_TRIANGLE_FAN>();			
+		}
+
+		for (auto bullet : state.bullets)
+		{
+			auto model = mat4::scale({0.05, 0.05, 0.05}) * mat4::translation({bullet.position[0], bullet.position[1], -1});
+			plane.using_shader(basic_shader)
+			.set_camera(cam)
+			["u_model"].mat4(model)
+			["u_tex"].texture(bolt_tex)
 			.draw<GL_TRIANGLE_FAN>();			
 		}
 
