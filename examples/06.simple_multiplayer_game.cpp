@@ -55,6 +55,7 @@ struct player_info
 struct bullet : public mover
 {
 	float life;
+	uint8_t owner_idx;
 };
 
 struct player : public mover
@@ -66,6 +67,13 @@ struct player : public mover
 
 	void to_network() {  }
 	void to_machine() {  }
+
+	void respawn()
+	{
+		velocity = {};
+		position = {};
+		hp = 20;
+	}
 };
 
 struct game_state_hdr
@@ -121,6 +129,7 @@ struct zappers : public g::core
 
 			host.on_disconnection = [&](int sock, player_info& p) {
 				std::cout << "player" << sock << " disconnected\n";
+				state.players.remove_at(p.index);
 			};
 
 			host.on_packet = [&](int sock, player_info& p) -> int {
@@ -199,11 +208,26 @@ struct zappers : public g::core
 					state.bullets.push_back({
 						player.position,
 						player.velocity + vel,
-						5
+						2,
+						(uint8_t)i
 					});
 
 					player.cool_down = 0.25;
 				}
+
+				for (int j = 0; j < state.bullets.size(); j++)
+				{
+					auto& bullet = state.bullets[j];
+					if (bullet.owner_idx == i) { continue; }
+
+					if ((bullet.position - player.position).magnitude() <= 0.1)
+					{
+						player.hp -= 1;
+						bullet.life = 0;
+					}
+				}
+
+				if (player.hp <= 0) player.respawn();
 			}
 
 			for (int i = 0; i < state.bullets.size(); i++)
@@ -273,13 +297,13 @@ struct zappers : public g::core
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_RIGHT) == GLFW_PRESS) cmd.ang_vel = -1;
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_SPACE) == GLFW_PRESS) cmd.shooting = 1;
 
-		if (!is_host)
+		if (is_host)
 		{
-			write(client.socket, &cmd, sizeof(cmd));
+			commands[0] = cmd;
 		}
 		else
 		{
-			commands[0] = cmd;
+			write(client.socket, &cmd, sizeof(cmd));
 		}
 
 
@@ -327,7 +351,10 @@ int main (int argc, const char* argv[])
 {
 	zappers game;
 
-	game.start({});
+	game.start({
+		"zappers",
+		{ true, 512, 512 }
+	});
 
 	return 0;
 }
