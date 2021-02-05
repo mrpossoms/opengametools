@@ -4,7 +4,7 @@
 using namespace xmath;
 using mat4 = xmath::mat<4,4>;
 
-const std::string vs_src =
+const std::string vs_tex_src =
 "attribute vec3 a_position;"
 "attribute vec2 a_uv;"
 "attribute vec3 a_normal;"
@@ -17,12 +17,18 @@ const std::string vs_src =
 "gl_Position = u_proj * u_view * u_model * vec4(a_position * 0.5, 1.0);"
 "}";
 
-const std::string fs_src =
+const std::string fs_tex_src =
 "varying vec2 v_uv;"
 "uniform sampler2D u_tex;"
 "void main (void) {"
 "gl_FragColor = texture2D(u_tex, v_uv);"
 "}";
+
+const std::string fs_white_src =
+"void main (void) {"
+"gl_FragColor = vec4(1.0);"
+"}";
+
 
 struct player_commands : g::net::msg
 {
@@ -103,18 +109,32 @@ struct zappers : public g::core
 	g::net::client client;
 	g::net::host<player_info> host;
 
-	g::gfx::shader basic_shader;
+	g::gfx::shader basic_shader, star_shader;
 	g::gfx::mesh<g::gfx::vertex::pos_uv_norm> plane;
+	g::gfx::mesh<g::gfx::vertex::pos> stars;
 	g::gfx::texture player_tex, bg_tex, bolt_tex;
 	g::game::camera cam;
 
 	virtual bool initialize()
 	{
 		{ // graphics init
-			basic_shader = g::gfx::shader_factory{}.add_src<GL_VERTEX_SHADER>(vs_src)
-												   .add_src<GL_FRAGMENT_SHADER>(fs_src)
+			basic_shader = g::gfx::shader_factory{}.add_src<GL_VERTEX_SHADER>(vs_tex_src)
+												   .add_src<GL_FRAGMENT_SHADER>(fs_tex_src)
+												   .create();
+			star_shader = g::gfx::shader_factory{}.add_src<GL_VERTEX_SHADER>(vs_tex_src)
+												   .add_src<GL_FRAGMENT_SHADER>(fs_white_src)
 												   .create();
 			plane = g::gfx::mesh_factory::plane();
+
+
+			std::vector<g::gfx::vertex::pos> star_verts;
+			for (int i = 0; i < 10000; i++)
+			{
+				star_verts.push_back({{ rand() % 128 - 64, rand() % 128 - 64, -rand() % 10 + 1}});
+			}
+
+			stars = g::gfx::mesh_factory::empty_mesh<g::gfx::vertex::pos>().set_vertices(star_verts);
+
 			player_tex = g::gfx::texture_factory{}.from_png("data/tex/ship.png").pixelated().create();
 			bg_tex = g::gfx::texture_factory{}.from_png("data/tex/nebula.png").pixelated().create();
 			bolt_tex = g::gfx::texture_factory{}.from_png("data/tex/bolt.png").pixelated().create();
@@ -315,12 +335,17 @@ struct zappers : public g::core
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		auto model = mat4::scale({100, 100, 100}) * mat4::translation({0, 0, -10.1});
+		auto model = mat4::scale({1000, 1000, 1000}) * mat4::translation({0, 0, -10.1});
 		plane.using_shader(basic_shader)
 		.set_camera(cam)
 		["u_model"].mat4(model)
 		["u_tex"].texture(bg_tex)
 		.draw<GL_TRIANGLE_FAN>();
+
+		stars.using_shader(star_shader)
+		.set_camera(cam)
+		["u_model"].mat4(mat4::I())
+		.draw<GL_POINTS>();
 
 		for (auto player : state.players)
 		{

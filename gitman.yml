@@ -9,7 +9,6 @@ sources:
     link: deps/xmath.h
     scripts:
       -
-sources_locked:
   - name: opengametools
     type: git
     repo: git@github.com:jpaver/opengametools.git
@@ -17,6 +16,24 @@ sources_locked:
       -
     rev: master
     link: deps/opengametools
+    scripts:
+      -
+  - name: png 
+    type: git
+    repo: git@github.com:glennrp/libpng.git
+    sparse_paths:
+      -
+    rev: master
+    link: deps/libpng
+    scripts:
+      -
+  - name: zlib 
+    type: git
+    repo: git@github.com:madler/zlib.git 
+    sparse_paths:
+      -
+    rev: master
+    link: deps/zlib
     scripts:
       -
 default_group: ''

@@ -2,6 +2,7 @@
 #define XMTYPE float
 #include <xmath.h>
 #include <g.game.h>
+#include <string.h>
 
 #ifdef __linux__
 #include <GL/glx.h>
@@ -620,6 +621,19 @@ namespace vertex
 			if (norm_loc > -1) glVertexAttribPointer(norm_loc, 3, GL_FLOAT, false, sizeof(pos_uv_norm), (void*)(p_size + uv_size));
 		}
 	};
+
+	struct pos
+	{
+		vec<3> position;
+
+		static void attributes(GLuint prog)
+		{
+			auto pos_loc = glGetAttribLocation(prog, "a_position");
+
+			if (pos_loc > -1) glEnableVertexAttribArray(pos_loc);
+			if (pos_loc > -1) glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos), (void*)0);
+		}
+	};
 }
 
 
@@ -687,6 +701,14 @@ struct mesh_factory {
 		});
 
 		return p;
+	}
+
+	template<typename V>
+	static mesh<V> empty_mesh()
+	{
+		mesh<V> m;
+		glGenBuffers(2, &m.vbo);
+		return m;		
 	}
 };
 

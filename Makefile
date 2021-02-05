@@ -2,9 +2,9 @@ TARGET=$(shell $(CXX) -dumpmachine)
 
 CXXFLAGS+=-std=c++11 -g
 CXXFLAGS+=-D_XOPEN_SOURCE=500 -D_GNU_SOURCE -DGL_GLEXT_PROTOTYPES -DGL_SILENCE_DEPRECATION
-INC+=-I inc -Ideps/xmath.h/inc
-LIB+=
-LINK+=
+INC+=-I./inc -Ideps/xmath.h/inc -Ideps/libpng
+LIB+=-Ldeps/libpng
+LINK+=-lpng
 SRCS=$(wildcard src/*.cpp)
 OBJS=$(patsubst src/%.cpp,out/$(TARGET)/%.cpp.o,$(wildcard src/*.cpp))
 
