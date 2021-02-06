@@ -26,8 +26,9 @@ sources:
     rev: master
     link: deps/zlib
     scripts:
+      - make clean
       - ./configure
-      - make
+      - make -j
   - name: png 
     type: git
     repo: git@github.com:glennrp/libpng.git
@@ -36,8 +37,9 @@ sources:
     rev: master
     link: deps/libpng
     scripts:
-      - ./configure
-      - make
+      - make clean
+      - LDFLAGS="-L../zlib" ./configure
+      - make -j
 default_group: ''
 groups:
   -
