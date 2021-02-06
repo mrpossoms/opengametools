@@ -130,7 +130,7 @@ struct zappers : public g::core
 			std::vector<g::gfx::vertex::pos> star_verts;
 			for (int i = 0; i < 10000; i++)
 			{
-				star_verts.push_back({{ rand() % 128 - 64, rand() % 128 - 64, -rand() % 10 + 1}});
+				star_verts.push_back({{ rand() % 128 - 64.f, rand() % 128 - 64.f, -rand() % 10 + 1.0f}});
 			}
 
 			stars = g::gfx::mesh_factory::empty_mesh<g::gfx::vertex::pos>().set_vertices(star_verts);

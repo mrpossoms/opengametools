@@ -18,15 +18,6 @@ sources:
     link: deps/opengametools
     scripts:
       -
-  - name: png 
-    type: git
-    repo: git@github.com:glennrp/libpng.git
-    sparse_paths:
-      -
-    rev: master
-    link: deps/libpng
-    scripts:
-      -
   - name: zlib 
     type: git
     repo: git@github.com:madler/zlib.git 
@@ -35,7 +26,18 @@ sources:
     rev: master
     link: deps/zlib
     scripts:
+      - ./configure
+      - make
+  - name: png 
+    type: git
+    repo: git@github.com:glennrp/libpng.git
+    sparse_paths:
       -
+    rev: master
+    link: deps/libpng
+    scripts:
+      - ./configure
+      - make
 default_group: ''
 groups:
   -

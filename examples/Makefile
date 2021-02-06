@@ -2,8 +2,8 @@ $(eval OS := $(shell uname))
 TARGET=$(shell $(CXX) -dumpmachine)
 
 CXXFLAGS+=-std=c++17 -g $(pkg-config --cflags glfw3)
-INC+=-I../inc -I../deps/xmath.h/inc #-I../deps/libpng
-LIB+=-L../lib/$(TARGET)/ #-L../deps/libpng
+INC+=-I../inc -I../deps/xmath.h/inc -I../deps/libpng
+LIB+=-L../lib/$(TARGET)/ -L../deps/libpng
 LINK+=-lg
 
 ifeq ($(OS),Darwin)
