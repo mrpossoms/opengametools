@@ -5,9 +5,68 @@
 #include <sys/select.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
+#include <openssl/sha.h>
 
 namespace g
 {
+struct split
+{
+public:
+	struct it
+	{
+	public:
+		it(std::string &str, std::string delim, size_t pos);
+
+		void operator++();
+
+		bool operator!=(it &i);
+
+		std::string operator*();
+
+	protected:
+		std::string &_str;
+		std::string _delim;
+		size_t _pos, _next_pos;
+	};
+
+	/**
+	 * @brief iterable class that splits a string into tokens
+	 *        separated by occurences of delim
+	 * @param str String whose tokens we want to iterate over.
+	 * @param delim String used as delimiter to create tokens.
+	 */
+	split(std::string &str, std::string delim);
+
+	it begin();
+
+	it end();
+
+private:
+	std::string &_str;
+	std::string _delim;
+};
+
+
+// std::string base64_encode(uint8_t const* buf, size_t len);
+void base64_encode(void *dst, const void *src, size_t len) // thread-safe, re-entrant
+{
+	static const unsigned char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	assert(dst != src);
+	unsigned int *d = (unsigned int *)dst;
+	const unsigned char *s = (const unsigned char*)src;
+	const unsigned char *end = s + len;
+	
+	while(s < end)
+	{
+		uint32_t e = *s++ << 16;
+		if (s < end) e |= *s++ << 8;
+		if (s < end) e |= *s++;
+		*d++ = b64[e >> 18] | (b64[(e >> 12) & 0x3F] << 8) | (b64[(e >> 6) & 0x3F] << 16) | (b64[e & 0x3F] << 24);
+	}
+	for (size_t i = 0; i < (3 - (len % 3)) % 3; i++) ((char *)d)[-1-i] = '=';
+}
+
 struct net
 {
 	struct msg
@@ -31,6 +90,7 @@ struct net
 		std::function<void(int socket, T& client)> on_disconnection;
 		std::function<int(int socket, T& client)> on_packet;
 		std::unordered_map<int, T> sockets;
+		std::unordered_set<int> senders;
 		std::thread listen_thread;
 		int listen_socket;
 
@@ -93,6 +153,78 @@ struct net
 			});
 		}
 
+		bool is_client_ws(int sock)
+		{
+			char buf[1024] = {};
+			std::unordered_map<std::string, std::string> headers;
+			auto bytes = recv(sock, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
+		
+			auto lines = std::string(buf);
+			int i = 0;
+			for (auto line : g::split(lines, "\r\n"))
+			{
+				std::cerr << "[" << line << "]\n"; 
+				if (i == 0 && std::string::npos == line.find("GET")) { return false; }
+				else
+				{
+					std::string key;
+					for (auto part : g::split(line, ": "))
+					{
+						if (key.length() == 0) { key = part; }
+						else
+						{
+							headers[key] = part;
+							break;
+						}
+					}
+				}
+				i++;
+			}
+
+			const auto sec_key = "Sec-WebSocket-Key";
+			if (headers.count(sec_key))
+			{
+				char* next = buf;
+				auto key = headers[sec_key] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+				unsigned char hash[SHA_DIGEST_LENGTH];
+				SHA1((const unsigned char*)key.c_str(), key.length(), hash);
+				char sec_accept[28];
+				g::base64_encode(sec_accept, hash, SHA_DIGEST_LENGTH);
+
+				{
+					std::string ex_key = "dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+					unsigned char ex_sha[SHA_DIGEST_LENGTH];
+					SHA1((const unsigned char*)ex_key.c_str(), ex_key.length(), ex_sha);
+					char ex_accept[28];
+					g::base64_encode(ex_accept, ex_sha, 20);
+
+					assert(0 == memcmp(ex_accept, "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", 28));
+				}
+
+				next += sprintf(next, "HTTP/1.1 101 Switching Protocols\r\n");
+				next += sprintf(next, "Upgrade: websocket\r\n");
+				next += sprintf(next, "Connection: %s\r\n", headers["Connection"].c_str());
+				next += sprintf(next, "Sec-WebSocket-Protocol: %s\r\n", headers["Sec-WebSocket-Protocol"].c_str());
+				next += sprintf(next, "Sec-WebSocket-Extensions: %s\r\n", headers["Sec-WebSocket-Extensions"].c_str());
+				next += sprintf(next, "Sec-WebSocket-Accept: %s\r\n", sec_accept);
+				next += sprintf(next, "Content-Length: 0\r\n");
+				next += sprintf(next, "\r\n");
+				printf(">> RESPONSE\n");
+				write(1, buf, (next - buf));
+				send(sock, buf, (next - buf), 0);
+				std::cout << "sha: " << hash << "\n"; 
+			}
+			else
+			{
+				return false;
+			}
+
+			// purge the http request we just got
+			read(sock, buf, bytes);
+
+			return true;
+		}
+
 		void update()
 		{
 			int max_sock = listen_socket;
@@ -143,7 +275,18 @@ struct net
 								if (sockets.size() == 0) { return; }
 								break;
 							default:
+								if (senders.count(sock) == 0)
+								{ 
+									// this socket hasn't sent anything yet
+									// lets check to see if it's a WS.
+									if (is_client_ws(sock))
+									{
+										senders.insert(sock); 
+										break;
+									}
+								}
 								on_packet(sock, pair.second);
+								senders.insert(sock);
 								break;
 						}
 					}
@@ -152,6 +295,7 @@ struct net
 					for (auto sock : disconnected_socks)
 					{
 						sockets.erase(sock);
+						senders.erase(sock);
 					}
 
 					if (FD_ISSET(listen_socket, &rfds))
