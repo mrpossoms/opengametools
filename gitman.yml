@@ -40,6 +40,15 @@ sources:
       - make clean
       - LDFLAGS="-L../zlib" ./configure
       - make -j
+  - name: sha1 
+    type: git
+    repo: git@github.com:mrpossoms/sha1.git
+    sparse_paths:
+      -
+    rev: master
+    link: deps/sha1
+    scripts:
+      - make static
 default_group: ''
 groups:
   -

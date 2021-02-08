@@ -5,7 +5,7 @@
 #include <sys/select.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
-#include <openssl/sha.h>
+#include <sha1.h>
 
 namespace g
 {
@@ -101,7 +101,7 @@ struct net
 		}
 
 		/**
-		 * @brief      Calling this method will bind a socker for accepting connections
+		 * @brief      Calling this method will bind a socket for accepting connections
 		 * to the provided port, then start a seperate thread to manage data received
 		 * from clients, new connections, and disconnection events. This method can
 		 * throw std::runtime_error exceptions for a number of reasons.
@@ -184,17 +184,18 @@ struct net
 			const auto sec_key = "Sec-WebSocket-Key";
 			if (headers.count(sec_key))
 			{
+				const auto SHA_DIGEST_LENGTH = 20;
 				char* next = buf;
 				auto key = headers[sec_key] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-				unsigned char hash[SHA_DIGEST_LENGTH];
-				SHA1((const unsigned char*)key.c_str(), key.length(), hash);
+				char hash[SHA_DIGEST_LENGTH];
+				SHA1(hash, (const char*)key.c_str(), key.length());
 				char sec_accept[28];
 				g::base64_encode(sec_accept, hash, SHA_DIGEST_LENGTH);
 
 				{
 					std::string ex_key = "dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-					unsigned char ex_sha[SHA_DIGEST_LENGTH];
-					SHA1((const unsigned char*)ex_key.c_str(), ex_key.length(), ex_sha);
+					char ex_sha[SHA_DIGEST_LENGTH];
+					SHA1(ex_sha, (const char*)ex_key.c_str(), ex_key.length());
 					char ex_accept[28];
 					g::base64_encode(ex_accept, ex_sha, 20);
 
