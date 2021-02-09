@@ -4,6 +4,32 @@
 using namespace xmath;
 using mat4 = xmath::mat<4,4>;
 
+#ifdef __EMSCRIPTEN__
+const std::string vs_tex_src =
+"attribute vec3 a_position;"
+"attribute vec2 a_uv;"
+"attribute vec3 a_normal;"
+"uniform mat4 u_model;"
+"uniform mat4 u_view;"
+"uniform mat4 u_proj;"
+"varying lowp vec2 v_uv;"
+"void main (void) {"
+"v_uv = a_uv;"
+"gl_Position = u_proj * u_view * u_model * vec4(a_position * 0.5, 1.0);"
+"}";
+
+const std::string fs_tex_src =
+"varying lowp vec2 v_uv;"
+"uniform sampler2D u_tex;"
+"void main (void) {"
+"gl_FragColor = texture2D(u_tex, v_uv);"
+"}";
+
+const std::string fs_white_src =
+"void main (void) {"
+"gl_FragColor = vec4(1.0);"
+"}";
+#else
 const std::string vs_tex_src =
 "attribute vec3 a_position;"
 "attribute vec2 a_uv;"
@@ -28,7 +54,7 @@ const std::string fs_white_src =
 "void main (void) {"
 "gl_FragColor = vec4(1.0);"
 "}";
-
+#endif
 
 struct player_commands : g::net::msg
 {

@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <algorithm>
 
+#include "g.utils.h"
 #include "g.gfx.h"
 #include "g.net.h"
 #include "g.game.h"
@@ -68,7 +69,6 @@ struct core
 
 	volatile bool running = false;
 };
-
 
 /**
  * @brief Simple, very low overhead datastructure for storing unordered data.
@@ -251,6 +251,5 @@ private:
 	T _list[CAP];
 	size_t _size;
 };
-
 
 } // namespace g
