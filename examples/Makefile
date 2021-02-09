@@ -4,7 +4,7 @@ TARGET=$(shell $(CXX) -dumpmachine)
 CXXFLAGS+=-std=c++17 -g $(pkg-config --cflags glfw3)
 INC+=-I../inc -I../deps/xmath.h/inc -I../deps/libpng -I../deps/zlib -I../deps/sha1
 LIB+=-L../lib/$(TARGET)/ -L../ex_libs/$(TARGET)/png -L../ex_libs/$(TARGET)/zlib -L../deps/sha1/lib/$(TARGET)
-LINK+=-lg -lsha1
+LINK+=-lg 
 
 ifeq ($(OS),Darwin)
 	LINK += -lm -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo
@@ -13,12 +13,12 @@ else
 ifeq ($(TARGET),wasm32-unknown-emscripten)
 	LINK +=-s USE_GLFW=3 -lglfw3 -lGL -lrt -lm -ldl
 else
-	LINK+=$(shell pkg-config --libs glfw3) -lGL -lrt -lm -ldl -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor 
+	LINK+=-lglfw3 -lGL -lrt -lm -ldl -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor 
 endif
 
 endif
 
-LINK+=-lpthread -lpng -lz
+LINK+=-lpthread -lpng -lz -lsha1
 SRCS=$(wildcard *.cpp)
 
 ../lib/$(TARGET)/libg.a:
