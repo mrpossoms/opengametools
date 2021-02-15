@@ -69,12 +69,36 @@ struct texture
 	GLenum type;
 	size_t width, height;
 	GLuint texture = (GLuint)-1;
+	char* data = nullptr;
 
-	void set_pixels(size_t w, size_t h, void* data, GLenum format=GL_RGBA, GLenum storage=GL_UNSIGNED_BYTE, GLenum t=GL_TEXTURE_2D)
+	void release_bitmap()
+	{
+		if (data)
+		{
+			free(data);
+			data = nullptr;
+		}
+	}
+
+	void create(GLenum texture_type)
+	{
+		type = texture_type;
+		glGenTextures(1, &this->texture);
+		assert(gl_get_error());
+	}
+
+	void destroy()
+	{
+		glDeleteTextures(1, &texture);
+		release_bitmap();
+	}
+
+	void set_pixels(size_t w, size_t h, char* data, GLenum format=GL_RGBA, GLenum storage=GL_UNSIGNED_BYTE, GLenum t=GL_TEXTURE_2D)
 	{
 		width = w;
 		height = h;
 		type = t;
+		this->data = data;
 		glTexImage2D(type, 0, format, width, height, 0, format, storage, data);
 	}
 
@@ -85,23 +109,20 @@ struct texture
 struct texture_factory
 {
 	int width, height;
-	void* data = nullptr;
+	char* data = nullptr;
 	GLenum texture_type;
 	GLenum min_filter = GL_LINEAR, mag_filter = GL_LINEAR;
 	GLenum wrap_s = GL_CLAMP_TO_EDGE, wrap_t = GL_CLAMP_TO_EDGE;
 	GLenum color_type = GL_RGBA;
 	GLenum storage_type = GL_UNSIGNED_BYTE;
 
+
 	texture_factory(int w=0, int h=0, GLenum type=GL_TEXTURE_2D)
 	{
+		data = nullptr;
 		texture_type = type;
 		width = w;
 		height = h;
-	}
-
-	~texture_factory()
-	{
-		free(data);
 	}
 
 	void abort(std::string message)
@@ -205,7 +226,7 @@ struct texture_factory
 		free(row_pointers);
 		fclose(fp);
 
-		data = (void*)pixel_buf;
+		data = pixel_buf;
 
 		std::cerr << G_TERM_GREEN "OK" G_TERM_COLOR_OFF << std::endl;
 
@@ -253,14 +274,17 @@ struct texture_factory
 	texture create()
 	{
 		texture out;
-		out.type = texture_type;
-		glGenTextures(1, &out.texture);
+
+		out.create(texture_type);
+		out.bind();
+
+		assert(gl_get_error());
+		if (data)
+		{
+			out.set_pixels(width, height, data, color_type, storage_type);	
+		}	
 		assert(gl_get_error());
 
-		out.bind();
-		assert(gl_get_error());
-		out.set_pixels(width, height, data, color_type, storage_type);
-		assert(gl_get_error());
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);

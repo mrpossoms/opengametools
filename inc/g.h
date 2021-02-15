@@ -24,8 +24,10 @@
 #include "g.gfx.h"
 #include "g.net.h"
 #include "g.game.h"
+#include "g.assets.h"
 
 namespace g {
+
 
 struct core
 {

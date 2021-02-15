@@ -6,7 +6,6 @@
 #include <sys/select.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
-#include <sha1.h>
 
 #define SHA1HANDSOFF
 
@@ -16,8 +15,12 @@
 /* for uint32_t */
 #include <stdint.h>
 
-#include "sha1.h"
-
+typedef struct
+{
+    uint32_t state[5];
+    uint32_t count[2];
+    unsigned char buffer[64];
+} SHA1_CTX;
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
@@ -44,7 +47,7 @@
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(
+static void SHA1Transform(
     uint32_t state[5],
     const unsigned char buffer[64]
 )
@@ -172,7 +175,7 @@ void SHA1Transform(
 
 /* SHA1Init - Initialize new context */
 
-void SHA1Init(
+static void SHA1Init(
     SHA1_CTX * context
 )
 {
@@ -188,7 +191,7 @@ void SHA1Init(
 
 /* Run your data through this. */
 
-void SHA1Update(
+static void SHA1Update(
     SHA1_CTX * context,
     const unsigned char *data,
     uint32_t len
@@ -221,7 +224,7 @@ void SHA1Update(
 
 /* Add padding and return the message digest. */
 
-void SHA1Final(
+static void SHA1Final(
     unsigned char digest[20],
     SHA1_CTX * context
 )
@@ -272,7 +275,7 @@ void SHA1Final(
     memset(&finalcount, '\0', sizeof(finalcount));
 }
 
-void SHA1(
+static void SHA1(
     char *hash_out,
     const char *str,
     int len)
@@ -428,9 +431,7 @@ struct net
 
 				next += sprintf(next, "HTTP/1.1 101 Switching Protocols\r\n");
 				next += sprintf(next, "Upgrade: websocket\r\n");
-				next += sprintf(next, "Connection: %s\r\n", headers["Connection"].c_str());
-				// next += sprintf(next, "Sec-WebSocket-Protocol: %s\r\n", headers["Sec-WebSocket-Protocol"].c_str());
-				// next += sprintf(next, "Sec-WebSocket-Extensions: %s\r\n", headers["Sec-WebSocket-Extensions"].c_str());
+				next += sprintf(next, "Connection: Upgrade\r\n");
 				next += sprintf(next, "Sec-WebSocket-Accept: %20s\r\n", sec_accept);
 				// next += sprintf(next, "Sec-WebSocket-Version: %s\r\n", headers["Sec-WebSocket-Version"].c_str());
 				// next += sprintf(next, "Content-Length: 0\r\n");

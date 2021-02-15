@@ -41,6 +41,7 @@ const std::string vs_tex_src =
 "void main (void) {"
 "v_uv = a_uv;"
 "gl_Position = u_proj * u_view * u_model * vec4(a_position * 0.5, 1.0);"
+"gl_PointSize = 2.0/(gl_Position.z);"
 "}";
 
 const std::string fs_tex_src =
@@ -129,6 +130,7 @@ struct zappers : public g::core
 	std::mutex state_lock;
 	bool is_host = false;
 	int my_index = 0;
+	g::asset::store assets;
 	std::unordered_map<int, player_commands> commands;
 	game_state state;
 
@@ -138,7 +140,6 @@ struct zappers : public g::core
 	g::gfx::shader basic_shader, star_shader;
 	g::gfx::mesh<g::gfx::vertex::pos_uv_norm> plane;
 	g::gfx::mesh<g::gfx::vertex::pos> stars;
-	g::gfx::texture player_tex, bg_tex, bolt_tex;
 	g::game::camera cam;
 
 	virtual bool initialize()
@@ -161,9 +162,7 @@ struct zappers : public g::core
 
 			stars = g::gfx::mesh_factory::empty_mesh<g::gfx::vertex::pos>().set_vertices(star_verts);
 
-			player_tex = g::gfx::texture_factory{}.from_png("data/tex/ship.png").pixelated().create();
-			bg_tex = g::gfx::texture_factory{}.from_png("data/tex/nebula.png").pixelated().create();
-			bolt_tex = g::gfx::texture_factory{}.from_png("data/tex/bolt.png").pixelated().create();
+			glEnable(GL_PROGRAM_POINT_SIZE);
 		}
 
 		{ // server behaviors
@@ -365,7 +364,7 @@ struct zappers : public g::core
 		plane.using_shader(basic_shader)
 		.set_camera(cam)
 		["u_model"].mat4(model)
-		["u_tex"].texture(bg_tex)
+		["u_tex"].texture(assets.tex("nebula.png"))
 		.draw<GL_TRIANGLE_FAN>();
 
 		stars.using_shader(star_shader)
@@ -379,7 +378,7 @@ struct zappers : public g::core
 			plane.using_shader(basic_shader)
 			.set_camera(cam)
 			["u_model"].mat4(model)
-			["u_tex"].texture(player_tex)
+			["u_tex"].texture(assets.tex("ship.png"))
 			.draw<GL_TRIANGLE_FAN>();			
 		}
 
@@ -389,7 +388,7 @@ struct zappers : public g::core
 			plane.using_shader(basic_shader)
 			.set_camera(cam)
 			["u_model"].mat4(model)
-			["u_tex"].texture(bolt_tex)
+			["u_tex"].texture(assets.tex("bolt.png"))
 			.draw<GL_TRIANGLE_FAN>();			
 		}
 

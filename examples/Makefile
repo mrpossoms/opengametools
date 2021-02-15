@@ -4,7 +4,7 @@ TARGET=$(shell $(CXX) -dumpmachine)
 CXXFLAGS+=-std=c++17 -g $(pkg-config --cflags glfw3)
 INC+=-I../inc -I../deps/xmath.h/inc -I../deps/libpng -I../deps/zlib -I../deps/sha1
 LIB+=-L../lib/$(TARGET)/ -L../ex_libs/$(TARGET)/png -L../ex_libs/$(TARGET)/zlib -L../deps/sha1/lib/$(TARGET)
-LINK+=-lg -lsha1
+LINK+=-lg
 
 ifeq ($(OS),Darwin)
 	LINK += -lm -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo

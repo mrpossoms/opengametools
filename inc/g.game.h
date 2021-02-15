@@ -25,9 +25,21 @@ struct camera : public view_point
 	float near = 0.1f, far = 1000.f;
 	proj_type proj = proj_type::perspective;
 
-	quat& pitch(float delta)
+	quat& d_pitch(float delta)
 	{
 		auto dq = quat::from_axis_angle({1, 0, 0}, delta);
+		return orientation *= dq;
+	}
+
+	quat& d_yaw(float delta)
+	{
+		auto dq = quat::from_axis_angle({0, 1, 0}, delta);
+		return orientation *= dq;
+	}
+
+	quat& d_roll(float delta)
+	{
+		auto dq = quat::from_axis_angle({0, 0, 1}, delta);
 		return orientation *= dq;
 	}
 
