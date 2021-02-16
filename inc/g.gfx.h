@@ -17,6 +17,8 @@
 #include <OpenGL/gl3.h>
 #endif
 
+#include <ogt_vox.h>
+
 #define G_TERM_GREEN "\033[0;32m"
 #define G_TERM_RED "\033[1;31m"
 #define G_TERM_YELLOW "\033[1;33m"

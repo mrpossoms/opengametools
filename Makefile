@@ -2,7 +2,7 @@ TARGET=$(shell $(CXX) -dumpmachine)
 
 CXXFLAGS+=-std=c++11 -g
 CXXFLAGS+=-D_XOPEN_SOURCE=500 -D_GNU_SOURCE -DGL_GLEXT_PROTOTYPES -DGL_SILENCE_DEPRECATION
-INC+=-I./inc -Ideps/xmath.h/inc -Ideps/libpng -Ideps/sha1
+INC+=-I./inc -Ideps/xmath.h/inc -Ideps/libpng -Ideps/sha1 -Ideps/opengametools/src
 LIB+=-Ldeps/libpng -Ldeps/sha1/lib/$(TARGET)
 LINK+=-lpng
 SRCS=$(wildcard src/*.cpp)
