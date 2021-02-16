@@ -8,17 +8,18 @@ LINK+=-lg
 
 ifeq ($(OS),Darwin)
 	LINK += -lm -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo
+	CXXFLAGS += -DGL_SILENCE_DEPRECATION
 else
 	CXXFLAGS += -D_XOPEN_SOURCE=500 -D_GNU_SOURCE -DGL_GLEXT_PROTOTYPES
 ifeq ($(TARGET),wasm32-unknown-emscripten)
 	LINK +=-s USE_GLFW=3 -lglfw3 -lGL -lrt -lm -ldl
 else
-	LINK+=-lglfw3 -lGL -lrt -lm -ldl -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor 
+	LINK+=-lglfw3 -lGL -lrt -lm -ldl -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor
 endif
 
 endif
 
-LINK+=-lpthread -lpng -lz
+LINK+=-lpthread ../ex_libs/$(TARGET)/png/libpng16.a -lz
 SRCS=$(wildcard *.cpp)
 
 ../lib/$(TARGET)/libg.a:

@@ -1,6 +1,6 @@
 location: gitman_sources
 sources:
-  - name: xmath.h 
+  - name: xmath.h
     type: git
     repo: https://github.com/mrpossoms/xmath.h.git
     sparse_paths:
@@ -18,18 +18,17 @@ sources:
     link: deps/opengametools
     scripts:
       -
-  - name: zlib 
+  - name: zlib
     type: git
-    repo: git@github.com:madler/zlib.git 
+    repo: git@github.com:madler/zlib.git
     sparse_paths:
       -
     rev: master
     link: deps/zlib
     scripts:
-      - make clean
       - ./configure
       - make -j
-  - name: png 
+  - name: png
     type: git
     repo: git@github.com:glennrp/libpng.git
     sparse_paths:
@@ -37,10 +36,9 @@ sources:
     rev: master
     link: deps/libpng
     scripts:
-      - make clean
       - LDFLAGS="-L../zlib" ./configure
-      - make -j
-  - name: sha1 
+      - make all-am -j
+  - name: sha1
     type: git
     repo: git@github.com:mrpossoms/sha1.git
     sparse_paths:

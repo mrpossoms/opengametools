@@ -20,7 +20,7 @@ ex_libs/$(TARGET):
 
 ex_libs/$(TARGET)/png: ex_libs/$(TARGET)
 	mkdir -p $@
-	cp deps/libpng/libpng.a $@
+	cp deps/libpng/.libs/* $@
 
 ex_libs/$(TARGET)/zlib: ex_libs/$(TARGET)
 	mkdir -p $@
@@ -35,7 +35,7 @@ lib/$(TARGET)/libg.a: $(OBJS)
 
 .PHONEY: clean static deps what
 clean:
-	rm -rf lib out
+	rm -rf lib out ex_libs
 
 deps: ex_libs/$(TARGET)/png ex_libs/$(TARGET)/zlib
 	@echo "Built deps for $(TARGET)"

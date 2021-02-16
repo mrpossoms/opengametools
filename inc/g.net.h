@@ -384,13 +384,13 @@ struct net
 		{
 			char buf[1024] = {};
 			std::unordered_map<std::string, std::string> headers;
-			auto bytes = recv(sock, buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
-		
+			auto bytes = recv(sock, buf, sizeof(buf), MSG_PEEK);
+
 			auto lines = std::string(buf);
 			int i = 0;
 			for (auto line : g::utils::split(lines, "\r\n"))
 			{
-				std::cerr << "[" << line << "]\n"; 
+				std::cerr << "[" << line << "]\n";
 				if (i == 0 && std::string::npos == line.find("GET")) { return false; }
 				else
 				{
@@ -439,7 +439,7 @@ struct net
 				printf(">> RESPONSE\n");
 				write(1, buf, (next - buf));
 				send(sock, buf, (next - buf), 0);
-				std::cout << "sha: " << hash << "\n"; 
+				std::cout << "sha: " << hash << "\n";
 			}
 			else
 			{
@@ -503,12 +503,12 @@ struct net
 								break;
 							default:
 								if (senders.count(sock) == 0)
-								{ 
+								{
 									// this socket hasn't sent anything yet
 									// lets check to see if it's a WS.
 									if (is_client_ws(sock))
 									{
-										senders.insert(sock); 
+										senders.insert(sock);
 										break;
 									}
 								}
