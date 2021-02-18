@@ -729,6 +729,7 @@ struct mesh_factory {
 		return p;
 	}
 
+
 	template<typename V>
 	static mesh<V> empty_mesh()
 	{

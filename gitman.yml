@@ -36,8 +36,10 @@ sources:
     rev: master
     link: deps/libpng
     scripts:
-      - LDFLAGS="-L../zlib" ./configure
-      - make all-am -j
+      - PNG_PREFIX=$PWD/../../ex_libs/$(${CC} -dumpmachine)/png
+      - echo $PNG_PREFIX
+      - LDFLAGS="-L../zlib" ./configure --libdir=$PWD/../../ex_libs/$(${CC} -dumpmachine)/png --bindir=$PWD/../../ex_libs/$(${CC} -dumpmachine)/png --mandir=$PWD/../../ex_libs/$(${CC} -dumpmachine)/png --includedir=$PWD/../../ex_libs/$(${CC} -dumpmachine)/png
+      - make install -j
   - name: sha1
     type: git
     repo: git@github.com:mrpossoms/sha1.git

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "g.gfx.h"
+#include "g.game.h"
 
 namespace g
 {
@@ -37,7 +38,7 @@ struct store
 {
 	private: std::string root;
 	private: std::unordered_map<std::string, kind<g::gfx::texture>> textures;
-	private: std::unordered_map<std::string, kind<const ogt_vox_scene*>> voxels;
+	private: std::unordered_map<std::string, kind<g::game::voxels_paletted>> voxels;
 
 	public: store(const std::string& root_path="data") : root(root_path) { }
 
@@ -55,7 +56,7 @@ struct store
 		return textures[partial_path].get();
 	}
 
-	const ogt_vox_scene* vox(const std::string& partial_path)
+	const g::game::voxels_paletted& vox(const std::string& partial_path)
 	{
 		auto itr = voxels.find(partial_path);
 		if (itr == voxels.end())
@@ -68,7 +69,7 @@ struct store
 #else
 	    	FILE * fp = fopen(filename.c_str(), "rb");
 #endif
-	    	if (!fp) { return nullptr; }
+	    	if (!fp) { throw std::runtime_error(partial_path + ": vox file could not be opened"); }
 
 		    // get the buffer size which matches the size of the file
 		    fseek(fp, 0, SEEK_END);
@@ -82,10 +83,25 @@ struct store
 
 		    // construct the scene from the buffer
 		    const ogt_vox_scene* scene = ogt_vox_read_scene_with_flags(buffer, buffer_size, 0);
-		    voxels[partial_path] = { time(nullptr), scene };
+
+		    if (scene->num_models == 0)
+		    {
+		    	delete[] buffer;
+		    	ogt_vox_destroy_scene(scene);
+		    	throw std::runtime_error(partial_path + ": vox file contained no models");
+		    }
+
+		    voxels[partial_path] = { time(nullptr), g::game::voxels_paletted{
+		    	scene->palette,
+		    	scene->models[0]->voxel_data,
+		    	scene->models[0]->size_x,
+		    	scene->models[0]->size_y,
+		    	scene->models[0]->size_z
+		    } };
 
 		    // the buffer can be safely deleted once the scene is instantiated.
 		    delete[] buffer;
+		    ogt_vox_destroy_scene(scene);
 		}
 
 	    return voxels[partial_path].get();	

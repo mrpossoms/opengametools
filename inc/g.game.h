@@ -1,5 +1,8 @@
 #pragma once
 #include "xmath.h"
+#include <string.h>
+#include <stddef.h>
+#include <ogt_vox.h>
 
 using namespace xmath;
 
@@ -57,6 +60,64 @@ struct camera : public view_point
 		}
 	}
 };
+
+template<typename DAT>
+struct voxels
+{
+	struct slice
+	{
+		size_t depth = 0;
+		DAT* v = nullptr;
+
+		slice(DAT* ptr, size_t d)
+		{
+			v = ptr;
+			depth = d;
+		}
+
+		DAT* operator[](size_t idx_h)
+		{
+			return v + (idx_h * depth);
+		}
+	};
+
+	size_t width, height, depth;
+	DAT* v;
+
+	voxels() = default;
+
+	voxels(const DAT* ptr, size_t w, size_t h, size_t d)
+	{
+		width = w;
+		height = h;
+		depth = d;
+		v = new DAT[w * h * d];
+		memcpy(v, ptr, sizeof(DAT) * w * h * d);
+	}
+
+	slice& operator[](size_t idx_w)
+	{
+		return { v + (idx_w * height * depth), depth };
+	}
+
+};
+
+struct voxels_paletted : public voxels<uint8_t>
+{
+	xmath::vec<4, uint8_t> palette[256];
+
+	voxels_paletted() = default;
+
+	voxels_paletted(ogt_vox_palette& pal, const uint8_t* ptr, size_t w, size_t h, size_t d) : voxels(ptr, w, h, d)
+	{
+		for (int i = 0; i < 256; i++)
+		{
+			auto& color = pal.color[i];
+			palette[i] = { color.r, color.g, color.b, color.a };
+		}
+	}
+};
+
 
 }
 }
