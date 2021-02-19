@@ -108,7 +108,7 @@ struct voxels_paletted : public voxels<uint8_t>
 
 	voxels_paletted() = default;
 
-	voxels_paletted(ogt_vox_palette& pal, const uint8_t* ptr, size_t w, size_t h, size_t d) : voxels(ptr, w, h, d)
+	voxels_paletted(const ogt_vox_palette& pal, const uint8_t* ptr, size_t w, size_t h, size_t d) : voxels(ptr, w, h, d)
 	{
 		for (int i = 0; i < 256; i++)
 		{

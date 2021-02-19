@@ -18,6 +18,7 @@
 #endif
 
 #include <ogt_vox.h>
+#include <ogt_voxel_meshify.h>
 
 #define G_TERM_GREEN "\033[0;32m"
 #define G_TERM_RED "\033[1;31m"
@@ -727,6 +728,14 @@ struct mesh_factory {
 		});
 
 		return p;
+	}
+
+	template<typename V>
+	static mesh<V> from_voxels(g::game::voxels_paletted& vox, std::function<V(ogt_mesh_vertex* vert_in)> converter)
+	{
+		mesh<V> m;
+
+		return m;
 	}
 
 
