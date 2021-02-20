@@ -661,19 +661,19 @@ namespace vertex
 		static void attributes(GLuint prog)
 		{
 			auto pos_loc = glGetAttribLocation(prog, "a_position");
-			auto color_loc = glGetAttribLocation(prog, "a_color");
 			auto norm_loc = glGetAttribLocation(prog, "a_normal");
+			auto color_loc = glGetAttribLocation(prog, "a_color");
 
 			if (pos_loc > -1) glEnableVertexAttribArray(pos_loc);
-			if (color_loc > -1) glEnableVertexAttribArray(color_loc);
 			if (norm_loc > -1) glEnableVertexAttribArray(norm_loc);
+			if (color_loc > -1) glEnableVertexAttribArray(color_loc);
 
 			auto p_size = sizeof(position);
-			auto c_size = sizeof(color);
+			auto n_size = sizeof(normal);
 
 			if (pos_loc > -1) glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_norm_color), (void*)0);
-			if (color_loc > -1) glVertexAttribPointer(color_loc, 4, GL_UNSIGNED_BYTE, false, sizeof(pos_norm_color), (void*)p_size);
-			if (norm_loc > -1) glVertexAttribPointer(norm_loc, 3, GL_FLOAT, false, sizeof(pos_norm_color), (void*)(p_size + c_size));
+			if (norm_loc > -1) glVertexAttribPointer(norm_loc, 3, GL_FLOAT, false, sizeof(pos_norm_color), (void*)(p_size));
+			if (color_loc > -1) glVertexAttribPointer(color_loc, 4, GL_UNSIGNED_BYTE, false, sizeof(pos_norm_color), (void*)(p_size + n_size));
 		}
 	};
 
@@ -706,7 +706,7 @@ struct mesh {
 
 	mesh& set_vertices(const V* verts, size_t count)
 	{
-		assert(glIsBuffer(vbo));
+		assert(GL_TRUE == glIsBuffer(vbo));
 		vertex_count = count;
 		assert(gl_get_error());
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -729,7 +729,7 @@ struct mesh {
 
 	mesh& set_indices(const uint32_t* inds, size_t count)
 	{
-		assert(glIsBuffer(ibo));
+		assert(GL_TRUE == glIsBuffer(ibo));
 		index_count = count;
 		assert(gl_get_error());
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
@@ -782,8 +782,12 @@ struct mesh_factory {
 	{
 		ogt_voxel_meshify_context empty_ctx = {};
 		mesh<V> m;
-		glGenBuffers(1, &m.vbo);
-		glGenBuffers(1, &m.ibo);
+		glGenBuffers(2, &m.vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
+
+		assert(GL_TRUE == glIsBuffer(m.vbo));
+		assert(GL_TRUE == glIsBuffer(m.ibo));
 
 		auto mesh = ogt_mesh_from_paletted_voxels_simple(&empty_ctx, vox.v, vox.width, vox.height, vox.depth, (const ogt_mesh_rgba*)vox.palette.color);
 		

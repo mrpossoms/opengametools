@@ -46,6 +46,10 @@ struct camera : public view_point
 		return orientation *= dq;
 	}
 
+	vec<3> forward() const { return orientation.rotate({0, 0, 1}); }
+
+	vec<3> left() const { return orientation.rotate({1, 0, 0}); }
+
 	mat<4, 4> view() const
 	{
 		return mat<4, 4>::translation(position) * orientation.to_matrix();

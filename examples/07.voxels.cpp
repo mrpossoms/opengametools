@@ -43,7 +43,7 @@ const std::string vs_tex_src =
 "uniform mat4 u_proj;"
 "varying vec4 v_color;"
 "void main (void) {"
-"v_color = a_color;"
+"v_color = a_color * vec4(1.0/254.0);"
 "gl_Position = u_proj * u_view * u_model * vec4(a_position * 0.5, 1.0);"
 "gl_PointSize = 2.0/(gl_Position.z);"
 "}";
@@ -65,10 +65,10 @@ struct voxels : public g::core
 {
 	g::asset::store assets;
 
-	g::gfx::shader basic_shader, star_shader;
+	g::gfx::shader basic_shader;
 	g::gfx::mesh<g::gfx::vertex::pos_norm_color> temple;
-	g::gfx::mesh<g::gfx::vertex::pos> stars;
 	g::game::camera cam;
+	float t;
 
 	virtual bool initialize()
 	{
@@ -76,21 +76,6 @@ struct voxels : public g::core
 			basic_shader = g::gfx::shader_factory{}.add_src<GL_VERTEX_SHADER>(vs_tex_src)
 												   .add_src<GL_FRAGMENT_SHADER>(fs_tex_src)
 												   .create();
-			star_shader = g::gfx::shader_factory{}.add_src<GL_VERTEX_SHADER>(vs_tex_src)
-												   .add_src<GL_FRAGMENT_SHADER>(fs_white_src)
-												   .create();
-			// plane = g::gfx::mesh_factory::plane();
-
-
-			std::vector<g::gfx::vertex::pos> star_verts;
-			for (int i = 0; i < 10000; i++)
-			{
-				vec<3> pos = { rand() % 128 - 64.f, rand() % 128 - 64.f, rand() % 128 - 64.f};
-				star_verts.push_back({pos.unit() * 100});
-			}
-			stars = g::gfx::mesh_factory::empty_mesh<g::gfx::vertex::pos>().set_vertices(star_verts);
-
-			glEnable(GL_PROGRAM_POINT_SIZE);
 		}
 
 		temple = g::gfx::mesh_factory::from_voxels<g::gfx::vertex::pos_norm_color>(assets.vox("temple.vox"),
@@ -108,26 +93,27 @@ struct voxels : public g::core
 	virtual void update(float dt)
 	{
 
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_W) == GLFW_PRESS) return;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_S) == GLFW_PRESS) return;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_A) == GLFW_PRESS) return;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_D) == GLFW_PRESS) return;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_LEFT) == GLFW_PRESS) return;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_RIGHT) == GLFW_PRESS) return;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_W) == GLFW_PRESS) cam.position += cam.forward() * dt;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_S) == GLFW_PRESS) cam.position += cam.forward() * -dt;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_A) == GLFW_PRESS) cam.position += cam.left() * dt;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_D) == GLFW_PRESS) cam.position += cam.left() * -dt;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_LEFT) == GLFW_PRESS) cam.d_yaw(dt);
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_RIGHT) == GLFW_PRESS) cam.d_yaw(-dt);
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_UP) == GLFW_PRESS) cam.d_pitch(dt);
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_DOWN) == GLFW_PRESS) cam.d_pitch(-dt);
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_SPACE) == GLFW_PRESS) return;
 
-		cam.position = {0, 0, 0};
 		// cam.orientation = quat::from_axis_angle({0, 0, 1}, 0);
 
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		auto model = mat4::scale({1, 1, 1}) * mat4::translation({0, 0, -10.1});
+		auto model = mat4::translation({-10, -10, -20});
 
 		temple.using_shader(basic_shader)
 		.set_camera(cam)
 		["u_model"].mat4(model)
-		.draw<GL_POINTS>();
+		.draw<GL_TRIANGLES>();
 
 	}
 };
@@ -139,7 +125,7 @@ int main (int argc, const char* argv[])
 
 	game.start({
 		"voxels",
-		{ true, 512, 512 }
+		{ true, 1024, 768 }
 	});
 
 	return 0;
