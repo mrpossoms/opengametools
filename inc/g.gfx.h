@@ -455,13 +455,16 @@ struct shader {
 		template<GLenum PRIM>
 		usage& draw()
 		{
+			assert(gl_get_error());
 			if (indices > 0)
 			{
 				glDrawElements(PRIM, indices, GL_UNSIGNED_INT, NULL);
+				assert(gl_get_error());
 			}
 			else
 			{
 				glDrawArrays(PRIM, 0, vertices);
+				assert(gl_get_error());
 			}
 
 			return *this;
@@ -703,14 +706,18 @@ struct mesh {
 
 	mesh& set_vertices(const V* verts, size_t count)
 	{
+		assert(glIsBuffer(vbo));
 		vertex_count = count;
+		assert(gl_get_error());
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		assert(gl_get_error());
 		glBufferData(
 			GL_ARRAY_BUFFER,
 			count * sizeof(V),
 			verts,
 			GL_STATIC_DRAW
 		);
+		assert(gl_get_error());
 
 		return *this;
 	}
@@ -722,14 +729,18 @@ struct mesh {
 
 	mesh& set_indices(const uint32_t* inds, size_t count)
 	{
+		assert(glIsBuffer(ibo));
 		index_count = count;
+		assert(gl_get_error());
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+		assert(gl_get_error());
 		glBufferData(
 			GL_ELEMENT_ARRAY_BUFFER,
 			count * sizeof(uint32_t),
 			inds,
 			GL_STATIC_DRAW
 		);
+		assert(gl_get_error());
 
 		return *this;
 	}
@@ -771,16 +782,21 @@ struct mesh_factory {
 	{
 		ogt_voxel_meshify_context empty_ctx = {};
 		mesh<V> m;
+		glGenBuffers(1, &m.vbo);
+		glGenBuffers(1, &m.ibo);
+
 		auto mesh = ogt_mesh_from_paletted_voxels_simple(&empty_ctx, vox.v, vox.width, vox.height, vox.depth, (const ogt_mesh_rgba*)vox.palette.color);
 		
 		V* verts = new V[mesh->vertex_count];
+		uint32_t* inds = new uint32_t[mesh->index_count];
 		for (auto i = 0; i < mesh->vertex_count; i++)
 		{
 			verts[i] = converter(mesh->vertices + i);
 		}
+		memcpy(inds, mesh->indices, sizeof(uint32_t) * mesh->index_count);
 
 		m.set_vertices(verts, mesh->vertex_count);
-		m.set_indices(mesh->indices, mesh->index_count);
+		m.set_indices(inds, mesh->index_count);
 
 		ogt_mesh_destroy(&empty_ctx, mesh);
 		delete[] verts;

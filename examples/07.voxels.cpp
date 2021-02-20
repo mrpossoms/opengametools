@@ -127,7 +127,7 @@ struct voxels : public g::core
 		temple.using_shader(basic_shader)
 		.set_camera(cam)
 		["u_model"].mat4(model)
-		.draw<GL_TRIANGLE_FAN>();
+		.draw<GL_POINTS>();
 
 	}
 };
