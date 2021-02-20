@@ -1,5 +1,9 @@
 #include "g.h"
 #include <mutex>
+#define OGT_VOX_IMPLEMENTATION
+#define OGT_VOXEL_MESHIFY_IMPLEMENTATION
+#include <ogt_vox.h>
+#include <ogt_voxel_meshify.h>
 
 using namespace xmath;
 using mat4 = xmath::mat<4,4>;
@@ -32,23 +36,22 @@ const std::string fs_white_src =
 #else
 const std::string vs_tex_src =
 "attribute vec3 a_position;"
-"attribute vec2 a_uv;"
 "attribute vec3 a_normal;"
+"attribute vec4 a_color;"
 "uniform mat4 u_model;"
 "uniform mat4 u_view;"
 "uniform mat4 u_proj;"
-"varying vec2 v_uv;"
+"varying vec4 v_color;"
 "void main (void) {"
-"v_uv = a_uv;"
+"v_color = a_color;"
 "gl_Position = u_proj * u_view * u_model * vec4(a_position * 0.5, 1.0);"
 "gl_PointSize = 2.0/(gl_Position.z);"
 "}";
 
 const std::string fs_tex_src =
-"varying vec2 v_uv;"
-"uniform sampler2D u_tex;"
+"varying vec4 v_color;"
 "void main (void) {"
-"gl_FragColor = texture2D(u_tex, v_uv);"
+"gl_FragColor = v_color;"
 "}";
 
 const std::string fs_white_src =
@@ -63,7 +66,7 @@ struct voxels : public g::core
 	g::asset::store assets;
 
 	g::gfx::shader basic_shader, star_shader;
-	g::gfx::mesh<g::gfx::vertex::pos_uv_norm> plane;
+	g::gfx::mesh<g::gfx::vertex::pos_norm_color> temple;
 	g::gfx::mesh<g::gfx::vertex::pos> stars;
 	g::game::camera cam;
 
@@ -76,7 +79,7 @@ struct voxels : public g::core
 			star_shader = g::gfx::shader_factory{}.add_src<GL_VERTEX_SHADER>(vs_tex_src)
 												   .add_src<GL_FRAGMENT_SHADER>(fs_white_src)
 												   .create();
-			plane = g::gfx::mesh_factory::plane();
+			// plane = g::gfx::mesh_factory::plane();
 
 
 			std::vector<g::gfx::vertex::pos> star_verts;
@@ -89,6 +92,15 @@ struct voxels : public g::core
 
 			glEnable(GL_PROGRAM_POINT_SIZE);
 		}
+
+		temple = g::gfx::mesh_factory::from_voxels<g::gfx::vertex::pos_norm_color>(assets.vox("temple.vox"),
+		[](ogt_mesh_vertex* v) {
+			return g::gfx::vertex::pos_norm_color{
+				{ v->pos.x, v->pos.y, v->pos.z },
+				{ v->normal.x, v->normal.y, v->normal.z },
+				{ v->color.r, v->color.g, v->color.b, v->color.a },
+			};
+		});
 
 		return true;
 	}
@@ -110,13 +122,12 @@ struct voxels : public g::core
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// auto model = mat4::scale({1000, 1000, 1000}) * mat4::translation({0, 0, -10.1});
+		auto model = mat4::scale({1, 1, 1}) * mat4::translation({0, 0, -10.1});
 
-		// plane.using_shader(basic_shader)
-		// .set_camera(cam)
-		// ["u_model"].mat4(model)
-		// ["u_tex"].texture(assets.tex("nebula.png"))
-		// .draw<GL_TRIANGLE_FAN>();
+		temple.using_shader(basic_shader)
+		.set_camera(cam)
+		["u_model"].mat4(model)
+		.draw<GL_TRIANGLE_FAN>();
 
 	}
 };

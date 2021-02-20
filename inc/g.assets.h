@@ -6,6 +6,7 @@
 
 #include "g.gfx.h"
 #include "g.game.h"
+#include <ogt_vox.h>
 
 namespace g
 {
@@ -56,7 +57,7 @@ struct store
 		return textures[partial_path].get();
 	}
 
-	const g::game::voxels_paletted& vox(const std::string& partial_path)
+	g::game::voxels_paletted& vox(const std::string& partial_path)
 	{
 		auto itr = voxels.find(partial_path);
 		if (itr == voxels.end())

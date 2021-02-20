@@ -649,6 +649,31 @@ namespace vertex
 		}
 	};
 
+	struct pos_norm_color
+	{
+		vec<3> position;
+		vec<3> normal;
+		vec<4, uint8_t> color;
+
+		static void attributes(GLuint prog)
+		{
+			auto pos_loc = glGetAttribLocation(prog, "a_position");
+			auto color_loc = glGetAttribLocation(prog, "a_color");
+			auto norm_loc = glGetAttribLocation(prog, "a_normal");
+
+			if (pos_loc > -1) glEnableVertexAttribArray(pos_loc);
+			if (color_loc > -1) glEnableVertexAttribArray(color_loc);
+			if (norm_loc > -1) glEnableVertexAttribArray(norm_loc);
+
+			auto p_size = sizeof(position);
+			auto c_size = sizeof(color);
+
+			if (pos_loc > -1) glVertexAttribPointer(pos_loc, 3, GL_FLOAT, false, sizeof(pos_norm_color), (void*)0);
+			if (color_loc > -1) glVertexAttribPointer(color_loc, 4, GL_UNSIGNED_BYTE, false, sizeof(pos_norm_color), (void*)p_size);
+			if (norm_loc > -1) glVertexAttribPointer(norm_loc, 3, GL_FLOAT, false, sizeof(pos_norm_color), (void*)(p_size + c_size));
+		}
+	};
+
 	struct pos
 	{
 		vec<3> position;
@@ -667,17 +692,23 @@ namespace vertex
 template<typename V>
 struct mesh {
 	GLuint vbo, ibo;
-	std::vector<uint32_t> indices;
-	std::vector<V> vertices;
+	size_t index_count = 0;
+	size_t vertex_count = 0;
 
 	mesh& set_vertices(const std::vector<V>& verts)
 	{
-		vertices = verts;
+		return set_vertices(verts.data(), verts.size());
+	}
+
+
+	mesh& set_vertices(const V* verts, size_t count)
+	{
+		vertex_count = count;
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		glBufferData(
 			GL_ARRAY_BUFFER,
-			verts.size() * sizeof(V),
-			verts.data(),
+			count * sizeof(V),
+			verts,
 			GL_STATIC_DRAW
 		);
 
@@ -686,12 +717,17 @@ struct mesh {
 
 	mesh& set_indices(const std::vector<uint32_t>& inds)
 	{
-		indices = inds;
+		return set_indices(inds.data(), inds.size());
+	}
+
+	mesh& set_indices(const uint32_t* inds, size_t count)
+	{
+		index_count = count;
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 		glBufferData(
 			GL_ELEMENT_ARRAY_BUFFER,
-			inds.size() * sizeof(uint32_t),
-			inds.data(),
+			count * sizeof(uint32_t),
+			inds,
 			GL_STATIC_DRAW
 		);
 
@@ -701,13 +737,13 @@ struct mesh {
 	shader::usage using_shader (shader& shader)
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		if (indices.size() > 0)
+		if (index_count > 0)
 		{
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 		}
 
 		shader.bind();
-		shader::usage usage = {shader, vertices.size(), indices.size()};
+		shader::usage usage = {shader, vertex_count, index_count};
 		usage.attach_attributes<V>(shader);
 		return usage;
 	}
@@ -733,7 +769,21 @@ struct mesh_factory {
 	template<typename V>
 	static mesh<V> from_voxels(g::game::voxels_paletted& vox, std::function<V(ogt_mesh_vertex* vert_in)> converter)
 	{
+		ogt_voxel_meshify_context empty_ctx = {};
 		mesh<V> m;
+		auto mesh = ogt_mesh_from_paletted_voxels_simple(&empty_ctx, vox.v, vox.width, vox.height, vox.depth, (const ogt_mesh_rgba*)vox.palette.color);
+		
+		V* verts = new V[mesh->vertex_count];
+		for (auto i = 0; i < mesh->vertex_count; i++)
+		{
+			verts[i] = converter(mesh->vertices + i);
+		}
+
+		m.set_vertices(verts, mesh->vertex_count);
+		m.set_indices(mesh->indices, mesh->index_count);
+
+		ogt_mesh_destroy(&empty_ctx, mesh);
+		delete[] verts;
 
 		return m;
 	}

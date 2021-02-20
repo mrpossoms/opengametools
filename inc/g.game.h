@@ -104,17 +104,13 @@ struct voxels
 
 struct voxels_paletted : public voxels<uint8_t>
 {
-	xmath::vec<4, uint8_t> palette[256];
+	ogt_vox_palette palette;
 
 	voxels_paletted() = default;
 
 	voxels_paletted(const ogt_vox_palette& pal, const uint8_t* ptr, size_t w, size_t h, size_t d) : voxels(ptr, w, h, d)
 	{
-		for (int i = 0; i < 256; i++)
-		{
-			auto& color = pal.color[i];
-			palette[i] = { color.r, color.g, color.b, color.a };
-		}
+		palette = pal;
 	}
 };
 

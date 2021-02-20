@@ -1,6 +1,5 @@
 #include <g.h>
 
-
 struct my_core : public g::core
 {
 	virtual bool initialize()
