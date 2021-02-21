@@ -13,7 +13,7 @@ public:
 	struct it
 	{
 	public:
-		it(std::string &str, std::string delim, size_t pos);
+		it(const std::string &str, std::string delim, size_t pos);
 
 		void operator++();
 
@@ -22,7 +22,7 @@ public:
 		std::string operator*();
 
 	protected:
-		std::string &_str;
+		const std::string& _str;
 		std::string _delim;
 		size_t _pos, _next_pos;
 	};
@@ -33,14 +33,14 @@ public:
 	 * @param str String whose tokens we want to iterate over.
 	 * @param delim String used as delimiter to create tokens.
 	 */
-	split(std::string &str, std::string delim);
+	split(const std::string &str, std::string delim);
 
 	it begin();
 
 	it end();
 
 private:
-	std::string &_str;
+	const std::string& _str;
 	std::string _delim;
 };
 

@@ -40,6 +40,7 @@ struct store
 	private: std::string root;
 	private: std::unordered_map<std::string, kind<g::gfx::texture>> textures;
 	private: std::unordered_map<std::string, kind<g::game::voxels_paletted>> voxels;
+	private: std::unordered_map<std::string, kind<g::gfx::shader>> shaders;
 
 	public: store(const std::string& root_path="data") : root(root_path) { }
 
@@ -56,6 +57,32 @@ struct store
 		
 		return textures[partial_path].get();
 	}
+
+
+	g::gfx::shader& shader(const std::string& program_collection)
+	{
+		auto itr = shaders.find(program_collection);
+		if (itr == shaders.end())
+		{
+			g::gfx::shader_factory factory; 
+			for (auto shader_path : g::utils::split(program_collection, "+"))
+			{
+				if (std::string::npos != shader_path.find(".vs"))
+				{
+					factory = factory.add<GL_VERTEX_SHADER>(root + "/shader/" + shader_path);
+				}
+				else if (std::string::npos != shader_path.find(".fs"))
+				{
+					factory = factory.add<GL_FRAGMENT_SHADER>(root + "/shader/" + shader_path);
+				}
+			}
+
+			shaders[program_collection] = { time(nullptr), factory.create() };
+		}
+
+		return shaders[program_collection].get();
+	}
+
 
 	g::game::voxels_paletted& vox(const std::string& partial_path)
 	{

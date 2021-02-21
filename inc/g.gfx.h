@@ -281,11 +281,8 @@ struct texture_factory
 		out.create(texture_type);
 		out.bind();
 
-		assert(gl_get_error());
-		if (data)
-		{
-			out.set_pixels(width, height, data, color_type, storage_type);	
-		}	
+		assert(gl_get_error());	
+		out.set_pixels(width, height, data, color_type, storage_type);	
 		assert(gl_get_error());
 
 
@@ -349,6 +346,11 @@ struct framebuffer_factory
 	{
 		depth_tex = texture_factory{ width, height }.depth().clamped().smooth().create();
 		return *this;
+	}
+
+	framebuffer_factory& shadow_map()
+	{
+		return color().depth();
 	}
 
 	framebuffer create()
@@ -492,6 +494,13 @@ struct shader {
 			return parent_usage;
 		}
 
+		inline usage vec3 (const vec<3>& v)
+		{
+			glUniform3fv(uni_loc, 1, v.v);
+
+			return parent_usage;
+		}
+
 		inline usage texture(const texture& tex)
 		{
 			glActiveTexture(GL_TEXTURE0 + parent_usage.texture_unit);
@@ -553,16 +562,17 @@ struct shader_factory
 	shader_factory add(const std::string& path)
 	{
 		auto fd = open(path.c_str(), O_RDONLY);
-		auto size = lseek(fd, SEEK_END, 0);
+		auto size = lseek(fd, 0, SEEK_END);
 
 		{ // read and compile the shader
 			GLchar* src = new GLchar[size];
-			lseek(fd, SEEK_SET, 0);
+			lseek(fd, 0, SEEK_SET);
 			read(fd, src, size);
-			close(fd);
-			delete[] src;
 
 			shaders[ST] = compile_shader(ST, src, (GLsizei)size);
+
+			close(fd);
+			delete[] src;
 		}
 
 		return *this;

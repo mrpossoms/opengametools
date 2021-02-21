@@ -87,6 +87,7 @@ struct voxels
 
 	size_t width, height, depth;
 	DAT* v;
+	vec<3> com;
 
 	voxels() = default;
 
@@ -99,7 +100,31 @@ struct voxels
 		memcpy(v, ptr, sizeof(DAT) * w * h * d);
 	}
 
-	slice& operator[](size_t idx_w)
+	vec<3>& center_of_mass(bool recompute=false)
+	{
+		if (recompute)
+		{
+			com = {0, 0, 0};
+			auto count = 0;
+			for (size_t w = 0; w < width; w++)
+			for (size_t h = 0; h < height; h++)
+			for (size_t d = 0; d < depth; d++)
+			{
+				auto vox = (*this)[w][h][d];
+				if (vox)
+				{
+					com += {(float)w, (float)h, (float)d};
+					count += 1;
+				}
+			}
+
+			com /= count;
+		}
+
+		return com;
+	}
+
+	slice operator[](size_t idx_w)
 	{
 		return { v + (idx_w * height * depth), depth };
 	}

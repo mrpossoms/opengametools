@@ -1,9 +1,8 @@
 #include "g.utils.h"
 
 
-g::utils::split::it::it(std::string& str, std::string delim, size_t pos) : _str(str)
+g::utils::split::it::it(const std::string& str, std::string delim, size_t pos) : _str(str)
 {
-	_str = str;
 	_delim = delim;
 	_pos = pos;
 	_next_pos = _str.find(_delim, _pos);
@@ -49,9 +48,8 @@ std::string g::utils::split::it::operator*()
 }
 
 
-g::utils::split::split(std::string& str, std::string delim) : _str(str)
+g::utils::split::split(const std::string& str, std::string delim) : _str(str)
 {
-	 _str = str;
 	_delim = delim;
 }
 
