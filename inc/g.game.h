@@ -4,6 +4,18 @@
 #include <stddef.h>
 #include <ogt_vox.h>
 
+#ifdef __linux__
+#include <GL/glx.h>
+#include <GL/glext.h>
+#endif
+
+#include <GLFW/glfw3.h>
+
+#ifdef __APPLE__
+#undef __gl_h_
+#include <OpenGL/gl3.h>
+#endif
+
 using namespace xmath;
 
 namespace g {
@@ -18,16 +30,6 @@ struct view_point
 
 struct camera : public view_point
 {
-	enum class proj_type
-	{
-		perspective,
-		orthographic,
-	};
-
-	float field_of_view = M_PI / 2;
-	float near = 0.1f, far = 1000.f;
-	proj_type proj = proj_type::perspective;
-
 	quat& d_pitch(float delta)
 	{
 		auto dq = quat::from_axis_angle({1, 0, 0}, delta);
@@ -55,13 +57,32 @@ struct camera : public view_point
 		return mat<4, 4>::translation(position) * orientation.to_matrix();
 	}
 
-	mat<4, 4> projection(float aspect) const
+	virtual mat<4, 4> projection() const = 0;
+};
+
+struct camera_perspective : public camera
+{
+	float field_of_view = M_PI / 2;
+	float near = 0.1f, far = 1000.f;
+
+	virtual mat<4, 4> projection() const 
 	{
-		switch (proj)
-		{
-			default:
-				return mat<4, 4>::perspective(near, far, field_of_view, aspect);
-		}
+		GLint vp[4];
+		glGetIntegerv(GL_VIEWPORT, vp);
+		auto aspect = vp[2] / (float)vp[3];
+		return mat<4, 4>::perspective(near, far, field_of_view, aspect);
+	}
+};
+
+struct camera_orthographic : public camera
+{
+	float near = 0.1f, far = 1000.f;
+
+	virtual mat<4, 4> projection() const 
+	{
+		GLint vp[4];
+		glGetIntegerv(GL_VIEWPORT, vp);
+		return mat<4, 4>::orthographic(near, far, vp[2]/2, -vp[2]/2, vp[3]/2, -vp[3]/2);	
 	}
 };
 
@@ -100,6 +121,11 @@ struct voxels
 		memcpy(v, ptr, sizeof(DAT) * w * h * d);
 	}
 
+	vec<3> center_of_bounds()
+	{
+		return { width / 2, height / 2, depth / 2};
+	}
+
 	vec<3>& center_of_mass(bool recompute=false)
 	{
 		if (recompute)
@@ -113,7 +139,7 @@ struct voxels
 				auto vox = (*this)[w][h][d];
 				if (vox)
 				{
-					com += {(float)w, (float)h, (float)d};
+					com += {(float)w, (float)d, (float)h};
 					count += 1;
 				}
 			}

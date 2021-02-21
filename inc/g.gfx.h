@@ -10,13 +10,13 @@
 #endif
 
 #include <GLFW/glfw3.h>
-#include <png.h>
 
 #ifdef __APPLE__
 #undef __gl_h_
 #include <OpenGL/gl3.h>
 #endif
 
+#include <png.h>
 #include <ogt_vox.h>
 #include <ogt_voxel_meshify.h>
 
@@ -422,7 +422,7 @@ struct shader {
 		usage set_camera(const g::game::camera& cam)
 		{
 			this->set_uniform("u_view").mat4(cam.view());
-			this->set_uniform("u_proj").mat4(cam.projection(aspect()));
+			this->set_uniform("u_proj").mat4(cam.projection());
 			return *this;
 		}
 

@@ -13,7 +13,8 @@ struct voxels : public g::core
 	g::asset::store assets;
 
 	g::gfx::mesh<g::gfx::vertex::pos_norm_color> temple;
-	g::game::camera cam, light;
+	g::game::camera_perspective cam;
+	g::game::camera_perspective light;
 	g::gfx::framebuffer shadow_map;
 	float t;
 
@@ -34,16 +35,20 @@ struct voxels : public g::core
 
 		assets.vox("temple.vox").center_of_mass(true);
 
+		cam.position = {0, 0, -30};
+		
+
 		return true;
 	}
 
 	virtual void update(float dt)
 	{
 
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_W) == GLFW_PRESS) cam.position += cam.forward() * dt;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_S) == GLFW_PRESS) cam.position += cam.forward() * -dt;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_A) == GLFW_PRESS) cam.position += cam.left() * dt;
-		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_D) == GLFW_PRESS) cam.position += cam.left() * -dt;
+		const auto speed = 4.0f;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_W) == GLFW_PRESS) cam.position += cam.forward() * dt * speed;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_S) == GLFW_PRESS) cam.position += cam.forward() * -dt * speed;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_A) == GLFW_PRESS) cam.position += cam.left() * dt * speed;
+		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_D) == GLFW_PRESS) cam.position += cam.left() * -dt * speed;
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_Q) == GLFW_PRESS) cam.d_roll(dt);
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_E) == GLFW_PRESS) cam.d_roll(-dt);
 		if (glfwGetKey(g::gfx::GLFW_WIN, GLFW_KEY_LEFT) == GLFW_PRESS) cam.d_yaw(dt);
@@ -56,7 +61,7 @@ struct voxels : public g::core
 
 
 		auto model = mat4::translation(assets.vox("temple.vox").center_of_mass() * -1);
-
+		light.position = {cos(t) * 10 * 0, 0, -20};
 		shadow_map.bind_as_target();
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -73,12 +78,13 @@ struct voxels : public g::core
 		.set_camera(cam)
 		["u_model"].mat4(model)
 		["u_light_view"].mat4(light.view())
-		["u_light_proj"].mat4(light.projection(1.f))
+		["u_light_proj"].mat4(light.projection())
 		["u_light_diffuse"].vec3({1, 1, 1})
 		["u_light_ambient"].vec3({13.5f/255.f, 20.6f/255.f, 23.5f/255.f})
 		["u_shadow_map"].texture(shadow_map.depth)
 		.draw<GL_TRIANGLES>();
 
+		t += dt;
 	}
 };
 
