@@ -14,7 +14,7 @@ struct voxels : public g::core
 
 	g::gfx::mesh<g::gfx::vertex::pos_norm_color> temple;
 	g::game::camera_perspective cam;
-	g::game::camera_perspective light;
+	g::game::camera_orthographic light;
 	g::gfx::framebuffer shadow_map;
 	float t;
 
@@ -60,7 +60,7 @@ struct voxels : public g::core
 		// cam.orientation = quat::from_axis_angle({0, 0, 1}, 0);
 
 
-		auto model = mat4::translation(assets.vox("temple.vox").center_of_mass() * -1);
+		auto model = mat4::translation(assets.vox("temple.vox").center_of_bounds() * -1);
 		light.position = {cos(t) * 10 * 0, 0, -20};
 		shadow_map.bind_as_target();
 		glClearColor(0, 0, 0, 1);

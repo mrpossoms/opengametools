@@ -77,12 +77,13 @@ struct camera_perspective : public camera
 struct camera_orthographic : public camera
 {
 	float near = 0.1f, far = 1000.f;
+	float width = 10, height = 10;
 
 	virtual mat<4, 4> projection() const 
 	{
 		GLint vp[4];
 		glGetIntegerv(GL_VIEWPORT, vp);
-		return mat<4, 4>::orthographic(near, far, vp[2]/2, -vp[2]/2, vp[3]/2, -vp[3]/2);	
+		return mat<4, 4>::orthographic(near, far, width/2, -width/2, height/2, -height/2);	
 	}
 };
 
@@ -123,7 +124,7 @@ struct voxels
 
 	vec<3> center_of_bounds()
 	{
-		return { width / 2, height / 2, depth / 2};
+		return { (float)width / 2, (float)height / 2, (float)depth / 2};
 	}
 
 	vec<3>& center_of_mass(bool recompute=false)
