@@ -16,7 +16,7 @@ struct voxels : public g::core
 	g::game::camera_perspective cam;
 	g::game::camera_orthographic light;
 	g::gfx::framebuffer shadow_map;
-	float t;
+	float t = 0;
 
 	virtual bool initialize()
 	{
@@ -36,7 +36,8 @@ struct voxels : public g::core
 		assets.vox("temple.vox").center_of_mass(true);
 
 		cam.position = {0, 0, -30};
-		
+		light.width = 100;
+		light.height = 100;
 
 		return true;
 	}
@@ -61,7 +62,7 @@ struct voxels : public g::core
 
 
 		auto model = mat4::translation(assets.vox("temple.vox").center_of_bounds() * -1);
-		light.position = {cos(t) * 10 * 0, 0, -20};
+		light.position = {cos(t) * 10 * 0, 0, 20};
 		shadow_map.bind_as_target();
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -75,7 +76,7 @@ struct voxels : public g::core
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		temple.using_shader(assets.shader("basic_color.vs+shadowed_color.fs"))
-		.set_camera(cam)
+		.set_camera(light)
 		["u_model"].mat4(model)
 		["u_light_view"].mat4(light.view())
 		["u_light_proj"].mat4(light.projection())
