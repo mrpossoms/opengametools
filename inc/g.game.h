@@ -76,7 +76,7 @@ struct camera_perspective : public camera
 
 struct camera_orthographic : public camera
 {
-	float near = 0.1f, far = 1000.f;
+	float near = 10.f, far = 100.f;
 	float width = 10, height = 10;
 
 	virtual mat<4, 4> projection() const 

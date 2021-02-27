@@ -62,7 +62,9 @@ struct voxels : public g::core
 
 
 		auto model = mat4::translation(assets.vox("temple.vox").center_of_bounds() * -1);
-		light.position = {cos(t) * 10 * 0, 0, 20};
+		// light.position = {cos(t) * 10, sin(t) * 10, -10 + cos(t) * -10};
+		light.d_yaw(-cos(t) * 0.01);
+		light.d_pitch(sin(t) * 0.01);
 		shadow_map.bind_as_target();
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -76,7 +78,7 @@ struct voxels : public g::core
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		temple.using_shader(assets.shader("basic_color.vs+shadowed_color.fs"))
-		.set_camera(light)
+		.set_camera(cam)
 		["u_model"].mat4(model)
 		["u_light_view"].mat4(light.view())
 		["u_light_proj"].mat4(light.projection())
