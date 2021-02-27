@@ -48,16 +48,30 @@ struct camera : public view_point
 		return orientation *= dq;
 	}
 
-	vec<3> forward() const { return orientation.rotate({0, 0, 1}); }
+	vec<3> forward() const { return orientation.rotate({0, 0, -1}); }
 
-	vec<3> left() const { return orientation.rotate({1, 0, 0}); }
+	vec<3> left() const { return orientation.rotate({-1, 0, 0}); }
+
+	mat<4, 4>& look_at(const vec<3>& subject, const vec<3>& up={0, 1, 0})
+	{
+		return _view = mat<4, 4>::look_at(position * -1.f, (subject + position).unit(), up);
+	}	
+
+	mat<4, 4>& look_at(const vec<3>& pos, const vec<3>& forward, const vec<3>& up)
+	{
+		return _view = mat<4, 4>::look_at((position = pos) * -1.0, forward, up);
+	}
 
 	mat<4, 4> view() const
 	{
-		return mat<4, 4>::translation(position) * orientation.to_matrix();
+		if (_view[3][3] != 0) { return _view; }
+		return mat<4, 4>::translation(position * -1) * orientation.to_matrix();
 	}
 
 	virtual mat<4, 4> projection() const = 0;
+
+private:
+	mat<4, 4> _view = {};
 };
 
 struct camera_perspective : public camera
@@ -76,7 +90,7 @@ struct camera_perspective : public camera
 
 struct camera_orthographic : public camera
 {
-	float near = 10.f, far = 100.f;
+	float near = 0.1f, far = 1000.f;
 	float width = 10, height = 10;
 
 	virtual mat<4, 4> projection() const 

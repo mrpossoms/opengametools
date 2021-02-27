@@ -12,7 +12,7 @@ void main (void)
 	vec3 normal = normalize(v_normal);
 	vec3 light_dir = normalize(v_light_proj_pos.xyz);
 	//float bias = 0.00001;
-	float bias = mix(0.0001, 0.00001, dot(v_normal, light_dir));
+	float bias = 0.00006;//mix(0.00001, 0.0005, dot(v_normal, light_dir));
 
 	float depth = v_light_proj_pos.z - bias;
 	float shadowing = 0.0;

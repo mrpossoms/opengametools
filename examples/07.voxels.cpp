@@ -13,16 +13,37 @@ struct voxels : public g::core
 	g::asset::store assets;
 
 	g::gfx::mesh<g::gfx::vertex::pos_norm_color> temple;
+	g::gfx::mesh<g::gfx::vertex::pos_norm_color> light_mesh;
+	g::gfx::framebuffer shadow_map;
+
+	g::game::voxels_paletted light_vox;
 	g::game::camera_perspective cam;
 	g::game::camera_orthographic light;
-	g::gfx::framebuffer shadow_map;
 	float t = 0;
 
 	virtual bool initialize()
 	{
 		{ // graphics init
-			shadow_map = g::gfx::framebuffer_factory{512, 512}.shadow_map().create();
+			shadow_map = g::gfx::framebuffer_factory{1024, 1024}.shadow_map().create();
 		}
+
+
+		ogt_vox_palette pal = {
+			{
+				{ 255, 255, 255, 255 },
+				{ 255, 255, 255, 255 },
+			}
+		};
+		uint8_t color = 1;
+		light_vox = g::game::voxels_paletted(pal, &color, 1, 1, 1);
+		light_mesh = g::gfx::mesh_factory::from_voxels<g::gfx::vertex::pos_norm_color>(light_vox,
+		[](ogt_mesh_vertex* v) -> g::gfx::vertex::pos_norm_color {
+			return {
+				{ v->pos.x, v->pos.y, v->pos.z },
+				{ v->normal.x, v->normal.y, v->normal.z },
+				{ v->color.r, v->color.g, v->color.b, v->color.a },
+			};
+		});
 
 		temple = g::gfx::mesh_factory::from_voxels<g::gfx::vertex::pos_norm_color>(assets.vox("temple.vox"),
 		[](ogt_mesh_vertex* v) -> g::gfx::vertex::pos_norm_color {
@@ -35,9 +56,9 @@ struct voxels : public g::core
 
 		assets.vox("temple.vox").center_of_mass(true);
 
-		cam.position = {0, 0, -30};
-		light.width = 100;
-		light.height = 100;
+		cam.position = {0, 0, 30};
+		light.width = 42;
+		light.height = 55;
 
 		return true;
 	}
@@ -62,9 +83,9 @@ struct voxels : public g::core
 
 
 		auto model = mat4::translation(assets.vox("temple.vox").center_of_bounds() * -1);
-		// light.position = {cos(t) * 10, sin(t) * 10, -10 + cos(t) * -10};
-		light.d_yaw(-cos(t) * 0.01);
-		light.d_pitch(sin(t) * 0.01);
+		light.position = vec<3>{cos(t * 0.1f) * 60, sin(t * 0.1f) * 60, 60};
+		light.look_at(vec<3>{0, 0, 0}, vec<3>{0, 0, 1});
+
 		shadow_map.bind_as_target();
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -77,6 +98,13 @@ struct voxels : public g::core
 
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		auto light_model = mat4::translation(light.position + light_vox.center_of_bounds() * -1);
+		light_mesh.using_shader(assets.shader("basic_color.vs+basic_color.fs"))
+		.set_camera(cam)
+		["u_model"].mat4(light_model)
+		.draw<GL_TRIANGLES>();
+
 		temple.using_shader(assets.shader("basic_color.vs+shadowed_color.fs"))
 		.set_camera(cam)
 		["u_model"].mat4(model)
