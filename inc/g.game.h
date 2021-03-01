@@ -104,6 +104,54 @@ struct camera_orthographic : public camera
 template<typename DAT>
 struct voxels
 {
+	struct itr
+	{
+		struct voxel
+		{
+			size_t x, y, z;
+			DAT* vox;
+
+			voxel(DAT* vox, size_t x, size_t y, size_t z)
+			{
+				this->vox = vox;
+				this->x = x; this->y = y; this->z = z;
+			}
+		};
+
+		size_t width, height, depth;
+		size_t offset, max_offset;
+		DAT* v;		
+
+		itr(DAT* voxels, size_t w, size_t h, size_t d, bool end)
+		{
+			v = voxels;
+			width = w; height = h; depth = d;
+			offset = 0;
+			max_offset = (width * height * depth) - 1;
+
+			if (end)
+			{
+				offset = max_offset;
+			}
+		}
+
+		void operator++()
+		{
+			offset++;
+			offset = std::min(offset, max_offset);
+		}
+
+		bool operator!=(itr& it)
+		{
+			return it.offset != offset;
+		}
+
+		voxel operator*()
+		{
+			return { v + offset, offset / (height * depth), (offset / depth) % height, offset % depth, };
+		}
+	};
+
 	struct slice
 	{
 		size_t depth = 0;
@@ -126,6 +174,14 @@ struct voxels
 	vec<3> com;
 
 	voxels() = default;
+
+	voxels(size_t w, size_t h, size_t d)
+	{
+		width = w;
+		height = h;
+		depth = d;
+		v = new DAT[w * h * d];
+	}
 
 	voxels(const DAT* ptr, size_t w, size_t h, size_t d)
 	{
@@ -170,6 +226,8 @@ struct voxels
 		return { v + (idx_w * height * depth), depth };
 	}
 
+	itr begin() { return itr(v, width, height, depth, false); }
+	itr end() { return itr(v, width, height, depth, true); }
 };
 
 struct voxels_paletted : public voxels<uint8_t>

@@ -704,7 +704,7 @@ namespace vertex
 
 template<typename V>
 struct mesh {
-	GLuint vbo, ibo;
+	GLuint vbo = 0, ibo = 0;
 	size_t index_count = 0;
 	size_t vertex_count = 0;
 
@@ -787,11 +787,12 @@ struct mesh_factory {
 		return p;
 	}
 
-	template<typename V>
-	static mesh<V> from_voxels(g::game::voxels_paletted& vox, std::function<V(ogt_mesh_vertex* vert_in)> converter)
+
+	template<typename VERT>
+	static mesh<VERT> from_voxels(g::game::voxels_paletted& vox, std::function<VERT(ogt_mesh_vertex* vert_in)> converter)
 	{
 		ogt_voxel_meshify_context empty_ctx = {};
-		mesh<V> m;
+		mesh<VERT> m;
 		glGenBuffers(2, &m.vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
@@ -801,7 +802,7 @@ struct mesh_factory {
 
 		auto mesh = ogt_mesh_from_paletted_voxels_simple(&empty_ctx, vox.v, vox.width, vox.height, vox.depth, (const ogt_mesh_rgba*)vox.palette.color);
 		
-		V* verts = new V[mesh->vertex_count];
+		VERT* verts = new VERT[mesh->vertex_count];
 		uint32_t* inds = new uint32_t[mesh->index_count];
 		for (auto i = 0; i < mesh->vertex_count; i++)
 		{
