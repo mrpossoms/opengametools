@@ -39,6 +39,14 @@ struct core
 			size_t width = 640;
 			size_t height = 480;
 		} gfx;
+
+		opts(const char* name, bool display, size_t width, size_t height)
+		{
+			this->name = name;
+			gfx.display = display;
+			gfx.width = width;
+			gfx.height = height;
+		}
 	};
 
 	/**
