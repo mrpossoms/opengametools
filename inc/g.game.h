@@ -207,7 +207,7 @@ struct voxels
 			for (size_t h = 0; h < height; h++)
 			for (size_t d = 0; d < depth; d++)
 			{
-				auto vox = (*this)[w][h][d];
+				auto vox = this->idx(w, h, d);
 				if (vox)
 				{
 					com += {(float)w, (float)d, (float)h};
@@ -220,6 +220,18 @@ struct voxels
 
 		return com;
 	}
+
+	inline DAT& idx(size_t x, size_t y, size_t z)
+	{
+		return v[(x * height * depth) + (y * depth) + z];
+		// return v[x + (y * width) + (z * width * height)];
+	} 
+
+	inline DAT& idx2(size_t x, size_t y, size_t z)
+	{
+		// return v[(x * height * depth) + (y * depth) + z];
+		return v[x + (y * width) + (z * width * height)];
+	} 
 
 	slice operator[](size_t idx_w)
 	{
