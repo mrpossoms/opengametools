@@ -207,15 +207,16 @@ struct voxels
 			for (size_t h = 0; h < height; h++)
 			for (size_t d = 0; d < depth; d++)
 			{
-				auto vox = this->idx(w, h, d);
+				auto vox = this->idx2(w, h, d);
 				if (vox)
 				{
-					com += {(float)w, (float)d, (float)h};
+					com += {(float)w, (float)h, (float)d};
 					count += 1;
 				}
 			}
 
 			com /= count;
+			com += vec<3>{0.5f, 0.5f, 0.5};
 		}
 
 		return com;
