@@ -222,15 +222,23 @@ struct voxels
 		return com;
 	}
 
+	inline DAT& idx(size_t x, size_t y, size_t z) const
+	{
+		return v[(x * height * depth) + (y * depth) + z];
+	} 
+
 	inline DAT& idx(size_t x, size_t y, size_t z)
 	{
 		return v[(x * height * depth) + (y * depth) + z];
-		// return v[x + (y * width) + (z * width * height)];
 	} 
+
+	inline DAT& idx2(size_t x, size_t y, size_t z) const
+	{
+		return v[x + (y * width) + (z * width * height)];
+	}
 
 	inline DAT& idx2(size_t x, size_t y, size_t z)
 	{
-		// return v[(x * height * depth) + (y * depth) + z];
 		return v[x + (y * width) + (z * width * height)];
 	} 
 
