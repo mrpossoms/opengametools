@@ -222,6 +222,19 @@ struct voxels
 		return com;
 	}
 
+	void find(const DAT& needle, std::function<void(size_t x, size_t y, size_t z)> found_cb)
+	{
+		for (size_t w = 0; w < width; w++)
+		for (size_t h = 0; h < height; h++)
+		for (size_t d = 0; d < depth; d++)
+		{
+			if (this->idx(w, h, d) == needle)
+			{
+				found_cb(w, h, d);
+			}
+		}
+	}
+
 	inline DAT& idx(size_t x, size_t y, size_t z) const
 	{
 		return v[(x * height * depth) + (y * depth) + z];
