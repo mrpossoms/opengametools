@@ -210,13 +210,13 @@ struct voxels
 				auto vox = this->idx2(w, h, d);
 				if (vox)
 				{
-					com += {(float)w, (float)h, (float)d};
+					com += {(float)w + 0.5f, (float)h + 0.5f, (float)d + 0.5f};
 					count += 1;
 				}
 			}
 
 			com /= count;
-			com += vec<3>{0.5f, 0.5f, 0.5};
+			//com += vec<3>{0.5f, 0.5f, 0.5};
 		}
 
 		return com;

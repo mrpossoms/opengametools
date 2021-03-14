@@ -501,6 +501,12 @@ struct shader {
 			return parent_usage;
 		}
 
+		inline usage int1(const int i)
+		{
+			glUniform1i(uni_loc, i);
+			return parent_usage;
+		}
+
 		inline usage texture(const texture& tex)
 		{
 			glActiveTexture(GL_TEXTURE0 + parent_usage.texture_unit);
