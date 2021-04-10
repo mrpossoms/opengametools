@@ -140,7 +140,7 @@ struct zappers : public g::core
 	g::gfx::shader basic_shader, star_shader;
 	g::gfx::mesh<g::gfx::vertex::pos_uv_norm> plane;
 	g::gfx::mesh<g::gfx::vertex::pos> stars;
-	g::game::camera cam;
+	g::game::camera_orthographic cam;
 
 	virtual bool initialize()
 	{
@@ -225,6 +225,11 @@ struct zappers : public g::core
 				return 0;
 			};
 		}
+
+		cam.width = 512;
+		cam.height = 512;
+
+		glDisable(GL_CULL_FACE);
 
 		return true;
 	}
@@ -401,10 +406,7 @@ int main (int argc, const char* argv[])
 {
 	zappers game;
 
-	game.start({
-		"zappers",
-		{ true, 512, 512 }
-	});
+	game.start({ "zappers", true, 512, 512 });
 
 	return 0;
 }

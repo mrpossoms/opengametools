@@ -50,7 +50,7 @@ struct my_core : public g::core
 
 		t += dt;
 
-		auto model = mat4::rotation({0, 1, 0}, t) * mat4::translation({0, 0, -1});
+		auto model = mat4::rotation({0, 1, 0}, t + M_PI) * mat4::translation({0, 0, -1});
 		auto proj = mat4::perspective(0.1, 10, M_PI / 2, g::gfx::aspect());
 
 		plane.using_shader(basic_shader)
@@ -68,7 +68,7 @@ int main (int argc, const char* argv[])
 {
 	my_core core;
 
-	core.start({});
+	core.start({ "04.basic_draw", true, 512, 512 });
 
 	return 0;
 }

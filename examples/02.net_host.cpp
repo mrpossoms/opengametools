@@ -73,7 +73,7 @@ int main (int argc, const char* argv[])
 {
 	my_core server;
 
-	server.start({});
+	server.start({ "02.net_host", false, 0, 0 });
 
 	return 0;
 }

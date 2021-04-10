@@ -29,7 +29,7 @@ struct my_core : public g::core
 	g::gfx::mesh<g::gfx::vertex::pos_uv_norm> plane;
 	g::gfx::texture grid_tex;
 	g::gfx::framebuffer fb;
-	g::game::camera cam;
+	g::game::camera_perspective cam;
 
 	virtual bool initialize()
 	{
@@ -46,6 +46,8 @@ struct my_core : public g::core
 		
 		cam.field_of_view = M_PI / 3;
 
+		glDisable(GL_CULL_FACE);
+
 		return true;
 	}
 
@@ -55,7 +57,7 @@ struct my_core : public g::core
 
 		auto model = mat4::rotation({0, 0, 1}, t) * mat4::translation({0, 0, -1});
 
-		cam.pitch(dt);
+		// cam.d_pitch(dt);
 
 		fb.bind_as_target();
 		glClearColor(0, 0, 1, 1);
@@ -67,7 +69,7 @@ struct my_core : public g::core
 		.draw<GL_TRIANGLE_FAN>();
 		fb.unbind_as_target();
 
-		model = mat4::rotation({0, 1, 0}, t) * mat4::translation({0, 0, -2});
+		model = mat4::rotation({0, 1, 0}, t + M_PI) * mat4::translation({0, 0, -2});
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		plane.using_shader(basic_shader)
@@ -85,7 +87,7 @@ int main (int argc, const char* argv[])
 {
 	my_core core;
 
-	core.start({});
+	core.start({ "05.offscreen_render", true, 512, 512 });
 
 	return 0;
 }

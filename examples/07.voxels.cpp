@@ -125,8 +125,7 @@ int main (int argc, const char* argv[])
 	voxels game;
 
 	game.start({
-		"voxels",
-		{ true, 1024, 768 }
+		"voxels", true, 1024, 768 
 	});
 
 	return 0;

@@ -63,7 +63,7 @@ int main (int argc, const char* argv[])
 {
 	my_core client;
 
-	client.start({});
+	client.start({ "03.net_client", false, 0, 0 });
 
 	return 0;
 }

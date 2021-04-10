@@ -31,7 +31,7 @@ int main (int argc, const char* argv[])
 {
 	my_core count_down;
 
-	count_down.start({});
+	count_down.start({ "01.core", false, 0, 0 });
 
 	return 0;
 }
