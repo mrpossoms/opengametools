@@ -267,3 +267,172 @@ framebuffer framebuffer_factory::create()
 
 	return fb;
 }
+
+
+
+shader& shader::bind() { glUseProgram(program); return *this; }
+
+
+shader::usage::usage (shader& ref, size_t verts, size_t inds) : shader_ref(ref)
+{
+	vertices = verts;
+	indices = inds;
+	texture_unit = 0;
+}
+
+
+shader::usage shader::usage::set_camera(const g::game::camera& cam)
+{
+	this->set_uniform("u_view").mat4(cam.view());
+	this->set_uniform("u_proj").mat4(cam.projection());
+	return *this;
+}
+
+
+shader::uniform_usage shader::usage::set_uniform(const std::string& name)
+{
+	GLint loc;
+	auto it = shader_ref.uni_locs.find(name);
+	if (it == shader_ref.uni_locs.end())
+	{
+		loc = glGetUniformLocation(shader_ref.program, name.c_str());
+
+		if (loc < 0)
+		{
+			// TODO: handle the missing uniform better
+			std::cerr << "uniform '" << name << "' doesn't exist\n";
+			shader_ref.uni_locs[name] = loc;
+		}
+	}
+	else
+	{
+		loc = (*it).second;
+	}
+
+	return uniform_usage(*this, loc);
+}
+
+shader::uniform_usage shader::usage::operator[](const std::string& name)
+{
+	return set_uniform(name);
+}
+
+
+shader::uniform_usage::uniform_usage(shader::usage& parent, GLuint loc) : parent_usage(parent) { uni_loc = loc; }
+
+shader::usage shader::uniform_usage::mat4 (const mat<4, 4>& m)
+{
+	glUniformMatrix4fv(uni_loc, 1, false, m.ptr());
+
+	return parent_usage;
+}
+
+shader::usage shader::uniform_usage::vec3 (const vec<3>& v)
+{
+	glUniform3fv(uni_loc, 1, v.v);
+
+	return parent_usage;
+}
+
+shader::usage shader::uniform_usage::int1(const int i)
+{
+	glUniform1i(uni_loc, i);
+	return parent_usage;
+}
+
+shader::usage shader::uniform_usage::texture(const g::gfx::texture& tex)
+{
+	glActiveTexture(GL_TEXTURE0 + parent_usage.texture_unit);
+	tex.bind();
+	glUniform1i(uni_loc, parent_usage.texture_unit);
+	parent_usage.texture_unit++;
+	return parent_usage;
+}
+
+
+GLuint shader_factory::compile_shader (GLenum type, const GLchar* src, GLsizei len)
+{
+	// Create the GL shader and attempt to compile it
+	auto shader = glCreateShader(type);
+	glShaderSource(shader, 1, &src, &len);
+	glCompileShader(shader);
+
+	assert(gl_get_error());
+
+	// Print the compilation log if there's anything in there
+	GLint log_length;
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+	if (log_length > 0)
+	{
+		GLchar *log_str = (GLchar *)malloc(log_length);
+		glGetShaderInfoLog(shader, log_length, &log_length, log_str);
+		std::cerr << "Shader compile log: " << log_length << std::endl << log_str << std::endl;
+		write(1, log_str, log_length);
+		free(log_str);
+	}
+
+	assert(gl_get_error());
+
+	// Check the status and exit on failure
+	GLint status;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE)
+	{
+		std::cerr << "Compiling failed: " << status << std::endl;
+		glDeleteShader(shader);
+
+		std::cerr << src << std::endl;
+		exit(-2);
+	}
+
+	assert(gl_get_error());
+	std::cerr << "OK" << std::endl;
+
+	return shader;
+}
+
+
+shader shader_factory::create()
+{
+	GLint status;
+	shader out;
+	out.program = glCreateProgram();
+
+	for (auto shader : shaders)
+	{
+		glAttachShader(out.program, shader.second);
+	}
+
+	assert(gl_get_error());
+	glLinkProgram(out.program);
+
+	glGetProgramiv(out.program, GL_LINK_STATUS, &status);
+	if (status == 0)
+	{
+		GLint log_length;
+		glGetProgramiv(out.program, GL_INFO_LOG_LENGTH, &log_length);
+		if (log_length > 0)
+		{
+			GLchar *log_str = (GLchar *)malloc(log_length);
+			glGetProgramInfoLog(out.program, log_length, &log_length, log_str);
+			std::cerr << "Shader link log: " << log_length << std::endl << log_str << std::endl;
+			write(1, log_str, log_length);
+			free(log_str);
+		}
+		exit(-1);
+	}
+	else
+	{
+		std::cerr << "Linked program " << out.program << std::endl;
+	}
+
+	assert(gl_get_error());
+
+	// Detach all
+	for (auto shader : shaders)
+	{
+		glDetachShader(out.program, shader.second);
+	}
+
+	return out;
+}
