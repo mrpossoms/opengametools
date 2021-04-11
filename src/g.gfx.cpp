@@ -133,7 +133,7 @@ texture_factory& texture_factory::from_png(const std::string& path)
 
 	for (int y = 0; y < height; y++)
 	{
-		row_pointers[y] = (png_byte*) malloc(bytes_per_row); // 
+		row_pointers[y] = (png_byte*) malloc(bytes_per_row); //
 		assert(row_pointers[y]);
 	}
 
@@ -176,19 +176,19 @@ texture_factory& texture_factory::pixelated()
 texture_factory& texture_factory::smooth()
 {
 	min_filter = mag_filter = GL_LINEAR;
-	return *this;		
+	return *this;
 }
 
 texture_factory& texture_factory::clamped()
 {
 	wrap_s = wrap_t = GL_CLAMP_TO_EDGE;
-	return *this;		
+	return *this;
 }
 
 texture_factory& texture_factory::repeating()
 {
 	wrap_s = wrap_t = GL_REPEAT;
-	return *this;		
+	return *this;
 }
 
 texture texture_factory::create()
@@ -198,8 +198,8 @@ texture texture_factory::create()
 	out.create(texture_type);
 	out.bind();
 
-	assert(gl_get_error());	
-	out.set_pixels(width, height, data, color_type, storage_type);	
+	assert(gl_get_error());
+	out.set_pixels(width, height, data, color_type, storage_type);
 	assert(gl_get_error());
 
 
@@ -211,4 +211,59 @@ texture texture_factory::create()
 	assert(gl_get_error());
 
 	return out;
+}
+
+framebuffer_factory::framebuffer_factory(int w, int h)
+{
+	width = w;
+	height = h;
+}
+
+framebuffer_factory& framebuffer_factory::color()
+{
+	color_tex = texture_factory{ width, height }.color().clamped().smooth().create();
+	return *this;
+}
+
+framebuffer_factory& framebuffer_factory::depth()
+{
+	depth_tex = texture_factory{ width, height }.depth().clamped().smooth().create();
+	return *this;
+}
+
+framebuffer_factory& framebuffer_factory::shadow_map()
+{
+	return color().depth();
+}
+
+framebuffer framebuffer_factory::create()
+{
+	framebuffer fb;
+
+	fb.width = width;
+	fb.height = height;
+	fb.color = color_tex;
+	fb.depth = depth_tex;
+	glGenFramebuffers(1, &fb.fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
+	assert(gl_get_error());
+
+	if (color_tex.texture != (GLuint)-1)
+	{
+		color_tex.bind();
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_tex.texture, 0);
+	}
+
+	if (depth_tex.texture != (GLuint)-1)
+	{
+		depth_tex.bind();
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_tex.texture, 0);
+	}
+
+	auto fb_stat = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	assert(fb_stat == GL_FRAMEBUFFER_COMPLETE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return fb;
 }

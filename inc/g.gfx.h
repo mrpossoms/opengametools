@@ -78,7 +78,7 @@ static float aspect()
 	return width / (float)height;
 }
 
-struct texture 
+struct texture
 {
 	GLenum type;
 	size_t width, height;
@@ -162,60 +162,15 @@ struct framebuffer_factory
 	int width, height;
 	texture color_tex, depth_tex;
 
-	framebuffer_factory(int w, int h)
-	{
-		width = w;
-		height = h;
-	}
+	framebuffer_factory(int w, int h);
 
-	framebuffer_factory& color()
-	{
-		color_tex = texture_factory{ width, height }.color().clamped().smooth().create();
-		return *this;
-	}
+	framebuffer_factory& color();
 
-	framebuffer_factory& depth()
-	{
-		depth_tex = texture_factory{ width, height }.depth().clamped().smooth().create();
-		return *this;
-	}
+	framebuffer_factory& depth();
 
-	framebuffer_factory& shadow_map()
-	{
-		return color().depth();
-	}
+	framebuffer_factory& shadow_map();
 
-	framebuffer create()
-	{
-		framebuffer fb;
-
-		fb.width = width;
-		fb.height = height;
-		fb.color = color_tex;
-		fb.depth = depth_tex; 
-		glGenFramebuffers(1, &fb.fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
-		assert(gl_get_error());
-
-		if (color_tex.texture != (GLuint)-1)
-		{
-			color_tex.bind();
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_tex.texture, 0);
-		}
-
-		if (depth_tex.texture != (GLuint)-1)
-		{
-			depth_tex.bind();
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_tex.texture, 0);
-		}
-
-		auto fb_stat = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-		assert(fb_stat == GL_FRAMEBUFFER_COMPLETE);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		return fb;
-	}
+	framebuffer create();
 };
 
 /**
@@ -639,7 +594,7 @@ struct mesh_factory {
 		assert(GL_TRUE == glIsBuffer(m.ibo));
 
 		auto mesh = ogt_mesh_from_paletted_voxels_simple(&empty_ctx, vox.v, vox.width, vox.height, vox.depth, (const ogt_mesh_rgba*)vox.palette.color);
-		
+
 		VERT* verts = new VERT[mesh->vertex_count];
 		uint32_t* inds = new uint32_t[mesh->index_count];
 		for (auto i = 0; i < mesh->vertex_count; i++)
@@ -663,7 +618,7 @@ struct mesh_factory {
 	{
 		mesh<V> m;
 		glGenBuffers(2, &m.vbo);
-		return m;		
+		return m;
 	}
 };
 
