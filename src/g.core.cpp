@@ -1,7 +1,34 @@
 #include "g.h"
 #include <chrono>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#define GL_GLEXT_PROTOTYPES
+#define EGL_EGLEXT_PROTOTYPES
+#endif
+
 GLFWwindow* g::gfx::GLFW_WIN;
+
+void g::core::tick()
+{
+	auto t_0 = std::chrono::system_clock::now();
+	std::chrono::duration<float> dt = t_0 - t_1;
+
+	update(dt.count());
+	t_1 = t_0;
+
+	if (g::gfx::GLFW_WIN)
+	{
+		glfwSwapBuffers(g::gfx::GLFW_WIN);
+		glfwPollEvents();
+		running = !glfwWindowShouldClose(g::gfx::GLFW_WIN);
+	}
+}
+
+static void EMSCRIPTEN_MAIN_LOOP(void* arg)
+{
+	static_cast<g::core*>(arg)->tick();
+}
 
 void g::core::start(const core::opts& opts)
 {
@@ -28,25 +55,17 @@ void g::core::start(const core::opts& opts)
 
 	if (!initialize()) { throw std::runtime_error("User initialize() call failed"); }
 
-	running = true;
 
-	auto t_1 = std::chrono::system_clock::now();
 
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop_arg(EMSCRIPTEN_MAIN_LOOP, this, 144, 1);
+#else
 	while (running)
-	{
-		auto t_0 = std::chrono::system_clock::now();
-		std::chrono::duration<float> dt = t_0 - t_1;
-
-		update(dt.count());
-		t_1 = t_0;
-
-		if (g::gfx::GLFW_WIN)
-		{
-			glfwSwapBuffers(g::gfx::GLFW_WIN);
-			glfwPollEvents();
-			running = !glfwWindowShouldClose(g::gfx::GLFW_WIN);
-		}
+	{ // TODO: refactor this such that a 'main loop' function can be implemented and called by emscripten_set_main_loop 
+		tick();
 	}
+#endif
+
 }
 
 

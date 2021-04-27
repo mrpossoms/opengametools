@@ -1,4 +1,7 @@
-#version 120 
+#ifdef GL_ES
+precision mediump float;
+#endif
+
 attribute vec3 a_position;
 attribute vec3 a_normal;
 attribute vec4 a_color;
@@ -16,7 +19,7 @@ varying vec4 v_light_proj_pos;
 
 void main (void)
 {
-	vec4 v_world_pos = u_model * vec4(a_position, 1.0);
+ vec4 v_world_pos = u_model * vec4(a_position, 1.0);
 	gl_Position = u_proj * u_view * v_world_pos;
 
 	v_color = a_color * vec4(1.0/254.0);

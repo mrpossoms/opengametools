@@ -1,21 +1,27 @@
 #include <g.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#define GL_GLEXT_PROTOTYPES
+#define EGL_EGLEXT_PROTOTYPES
+#endif
+
 using mat4 = xmath::mat<4,4>;
 
 const std::string vs_src =
-"attribute vec3 a_position;"
-"attribute vec2 a_uv;"
-"attribute vec3 a_normal;"
+"attribute lowp vec3 a_position;"
+"attribute lowp vec2 a_uv;"
+"attribute lowp vec3 a_normal;"
 "uniform mat4 u_model;"
 "uniform mat4 u_proj;"
-"varying vec2 v_uv;"
+"varying lowp vec2 v_uv;"
 "void main (void) {"
 "v_uv = a_uv;"
 "gl_Position = u_proj * u_model * vec4(a_position * 0.5, 1.0);"
 "}";
 
 const std::string fs_src =
-"varying vec2 v_uv;"
+"varying lowp vec2 v_uv;"
 "uniform sampler2D u_tex;"
 "void main (void) {"
 "gl_FragColor = texture2D(u_tex, v_uv);"
@@ -45,7 +51,7 @@ struct my_core : public g::core
 
 	virtual void update(float dt)
 	{
-		glClearColor(0, 0, 0, 1);
+		glClearColor(0, 0, 1, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		t += dt;
@@ -63,12 +69,20 @@ struct my_core : public g::core
 	float t;
 };
 
+my_core core;
+
+// void main_loop() { core.tick(); }
 
 int main (int argc, const char* argv[])
 {
-	my_core core;
 
+// #ifdef __EMSCRIPTEN__
+// 	core.running = false;
+// 	core.start({ "04.basic_draw", true, 512, 512 });
+// 	emscripten_set_main_loop(main_loop, 144, 1);
+// #else
 	core.start({ "04.basic_draw", true, 512, 512 });
+// #endif
 
 	return 0;
 }

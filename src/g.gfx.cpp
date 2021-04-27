@@ -207,7 +207,8 @@ texture texture_factory::create()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	assert(gl_get_error());
+	// glGenerateMipmap(GL_TEXTURE_2D);
 	assert(gl_get_error());
 
 	return out;
@@ -233,7 +234,7 @@ framebuffer_factory& framebuffer_factory::depth()
 
 framebuffer_factory& framebuffer_factory::shadow_map()
 {
-	return color().depth();
+	return depth();
 }
 
 framebuffer framebuffer_factory::create()

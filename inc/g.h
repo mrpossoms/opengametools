@@ -59,6 +59,11 @@ struct core
 	virtual bool initialize () { return true; }
 
 	/**
+	 * @brief      { function_description }
+	 */
+	void tick();
+
+	/**
 	 * @brief      The update function is effectively the main loop of your
 	 * game. Override this to run your game logic every frame/tick
 	 *
@@ -77,7 +82,8 @@ struct core
 	 */
 	void start(const core::opts& opts);
 
-	volatile bool running = false;
+	std::chrono::system_clock::time_point t_1 = std::chrono::system_clock::now();
+	volatile bool running = true;
 };
 
 /**

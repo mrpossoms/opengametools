@@ -1,4 +1,7 @@
-#version 120
+#ifdef GL_ES
+precision mediump float;
+#endif
+
 varying vec4 v_color;
 varying vec3 v_normal;
 varying vec4 v_light_proj_pos;
